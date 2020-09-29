@@ -1,0 +1,40 @@
+---
+kind: pipeline
+type: docker
+name: ckube
+
+workspace:
+  base: /go
+  path: src/backend
+
+#concurrency:
+#  limit: 1
+
+steps:
+  - name: 构建镜像
+    image: plugins/docker
+    pull: if-not-exists
+    volumes:
+      - name: docker-cache
+        path: /var/lib/docker
+    settings:
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_secret
+      dockerfile: Dockerfile
+      repo: registry.daocloud.cn/mesh/ckube
+      registry: https://registry.daocloud.cn
+      tags:
+        - ${DRONE_BUILD_NUMBER}
+    environment:
+      PLUGIN_INSECURE: "true"
+    when:
+      branch:
+        - develop
+        - master
+
+volumes:
+  - name: docker-cache
+    host:
+      path: /daocloud/drone/cache/mesh/docker/ckube
