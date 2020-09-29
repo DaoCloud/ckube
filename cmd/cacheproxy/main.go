@@ -1,11 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
+	"gitlab.daocloud.cn/mesh/ckube/server"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"gitlab.daocloud.cn/mesh/ckube/store/memory"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"gitlab.daocloud.cn/mesh/ckube/watcher"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -58,33 +58,51 @@ func main() {
 		fmt.Fprintf(os.Stderr, "init k8s client error: %v", err)
 		os.Exit(1)
 	}
-	gvr := store.GroupVersionResource{
+	podGvr := store.GroupVersionResource{
 		Group:    "",
 		Version:  "v1",
 		Resource: "pods",
 	}
-	m := memory.NewMemoryStore(map[store.GroupVersionResource]map[string]string{
-		gvr: {
-			"namespace": "{.metadata.namespace}",
-			"name":      "{.metadata.name}",
-			"labels":    "{.metadata.labels}",
-		},
-	})
-	podList, err := client.CoreV1().Pods("default").List(context.Background(), v1.ListOptions{})
-	for _, pod := range podList.Items {
-		err := m.OnResourceAdded(gvr, pod)
-		fmt.Sprintf("err: %v", err)
+	svcGvr := store.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "services",
 	}
-	res := m.Query(gvr, store.Query{
-		Namespace: "",
-		Paginate: store.Paginate{
-			Page:     1,
-			PageSize: 2,
-			Reverse:  true,
-			Sort:     "name",
-			Search:   "",
+	commonMap := map[string]string{
+		"namespace":  "{.metadata.namespace}",
+		"name":       "{.metadata.name}",
+		"created_at": "{.metadata.creationTimestamp}",
+	}
+	m := memory.NewMemoryStore(map[store.GroupVersionResource]map[string]string{
+		podGvr: {
+			"namespace":                     "{.metadata.namespace}",
+			"name":                          "{.metadata.name}",
+			"creationTimestamp":             "{.metadata.creationTimestamp}",
+			"metadata.ownerReferences.kind": "{.metadata.ownerReferences[0].kind}",
+			"metadata.ownerReferences.name": "{.metadata.ownerReferences[0].name}",
 		},
+		svcGvr: commonMap,
 	})
-	fmt.Sprintf("%v", res)
-	<-make(chan struct{})
+	w := watcher.NewWatcher(client, []store.GroupVersionResource{podGvr, svcGvr}, m)
+	w.Start()
+	ser := server.NewMuxServer(":3033", m)
+	ser.Run()
+	//podList, err := client.CoreV1().Pods("default").List(context.Background(), v1.ListOptions{})
+	//for _, pod := range podList.Items {
+	//	err := m.OnResourceAdded(podGvr, pod)
+	//	fmt.Sprintf("err: %v", err)
+	//}
+	//time.Sleep(time.Second * 3)
+	//res := m.Query(podGvr, store.Query{
+	//	Namespace: "",
+	//	Paginate: store.Paginate{
+	//		Page:     3,
+	//		PageSize: 1,
+	//		Reverse:  true,
+	//		Sort:     "name",
+	//		Search:   "",
+	//	},
+	//})
+	//fmt.Sprintf("%v", res)
+	//make(chan struct{}) <- struct{}{}
 }
