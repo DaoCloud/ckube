@@ -17,6 +17,8 @@ steps:
     volumes:
       - name: docker-cache
         path: /var/lib/docker
+      - name: docker-sock
+        path: /var/run/docker.sock
     settings:
       username:
         from_secret: docker_username
@@ -38,3 +40,7 @@ volumes:
   - name: docker-cache
     host:
       path: /daocloud/drone/cache/mesh/docker/ckube
+
+  - name: docker-sock
+    host:
+      path: /var/run/docker.sock
