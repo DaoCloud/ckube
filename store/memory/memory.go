@@ -14,6 +14,7 @@ type resourceObj map[string]store.Object
 
 type namespaceResource map[string]resourceObj
 
+// todo add lock
 type memoryStore struct {
 	resourceMap map[store.GroupVersionResource]namespaceResource
 	indexConf   map[store.GroupVersionResource]map[string]string
