@@ -3,6 +3,7 @@ package memory
 import (
 	"bytes"
 	"fmt"
+	"gitlab.daocloud.cn/mesh/ckube/log"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"k8s.io/client-go/util/jsonpath"
 	"sort"
@@ -117,18 +118,25 @@ func (m *memoryStore) Query(gvr store.GroupVersionResource, query store.Query) s
 			return r
 		})
 	}
-	start := (query.Page - 1) * query.PageSize
-	end := start + query.PageSize
-	if start >= l-1 {
-		start = l - 1
-	}
-	if end >= l {
+	res.Total = l
+	var start, end int64 = 0, 0
+	if query.PageSize == 0 {
+		// all resources
+		start = 0
 		end = l
+	} else {
+		start = (query.Page - 1) * query.PageSize
+		end = start + query.PageSize
+		if start >= l-1 {
+			start = l - 1
+		}
+		if end >= l {
+			end = l
+		}
 	}
 	for _, r := range resources[start:end] {
-		res.Items = append(res.Items, r)
+		res.Items = append(res.Items, r.Obj)
 	}
-	res.Total = l
 	return res
 }
 
@@ -144,7 +152,7 @@ func (m *memoryStore) buildResourceWithIndex(gvr store.GroupVersionResource, obj
 		jp.Parse(v)
 		err := jp.Execute(w, obj)
 		if err != nil {
-			// todo log
+			log.Warnf("exec jsonpath error: %v, %v", obj, err)
 		}
 		s.Index[k] = w.String()
 	}
