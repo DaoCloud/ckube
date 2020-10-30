@@ -9,6 +9,7 @@ type Query struct {
 }
 
 type Store interface {
+	IsStoreGVR(gvr GroupVersionResource) bool
 	OnResourceAdded(gvr GroupVersionResource, obj interface{}) error
 	OnResourceModified(gvr GroupVersionResource, obj interface{}) error
 	OnResourceDeleted(gvr GroupVersionResource, obj interface{}) error

@@ -1,11 +1,15 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
+	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/server"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"gitlab.daocloud.cn/mesh/ckube/store/memory"
 	"gitlab.daocloud.cn/mesh/ckube/watcher"
+	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -53,56 +57,44 @@ func GetKubernetesClientWithFile(kubeconfig, context string) (kubernetes.Interfa
 }
 
 func main() {
+	configFile := ""
+	flag.StringVar(&configFile, "c", "config/local.json", "config file path")
+	flag.Parse()
+
+	cfg := common.Config{}
+	if bs, err := ioutil.ReadFile(configFile); err != nil {
+		fmt.Fprintf(os.Stderr, "config file load error: %v", err)
+		os.Exit(1)
+	} else {
+		err := json.Unmarshal(bs, &cfg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "config file load error: %v", err)
+			os.Exit(3)
+		}
+	}
 	client, err := GetKubernetesClientWithFile("", "")
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "init k8s client error: %v", err)
-		os.Exit(1)
+		os.Exit(2)
 	}
-	podGvr := store.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "pods",
+	indexConf := map[store.GroupVersionResource]map[string]string{}
+	storeGVRConfig := []store.GroupVersionResource{}
+	for _, proxy := range cfg.Proxies {
+		indexConf[store.GroupVersionResource{
+			Group:    proxy.Group,
+			Version:  proxy.Version,
+			Resource: proxy.Resource,
+		}] = proxy.Index
+		storeGVRConfig = append(storeGVRConfig, store.GroupVersionResource{
+			Group:    proxy.Group,
+			Version:  proxy.Version,
+			Resource: proxy.Resource,
+		})
 	}
-	svcGvr := store.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "services",
-	}
-	commonMap := map[string]string{
-		"namespace":  "{.metadata.namespace}",
-		"name":       "{.metadata.name}",
-		"created_at": "{.metadata.creationTimestamp}",
-	}
-	m := memory.NewMemoryStore(map[store.GroupVersionResource]map[string]string{
-		podGvr: {
-			"namespace":                     "{.metadata.namespace}",
-			"name":                          "{.metadata.name}",
-			"creationTimestamp":             "{.metadata.creationTimestamp}",
-			"metadata.ownerReferences.kind": "{.metadata.ownerReferences[0].kind}",
-			"metadata.ownerReferences.name": "{.metadata.ownerReferences[0].name}",
-		},
-		svcGvr: commonMap,
-	})
-	w := watcher.NewWatcher(client, []store.GroupVersionResource{podGvr, svcGvr}, m)
+	m := memory.NewMemoryStore(indexConf)
+	w := watcher.NewWatcher(client, storeGVRConfig, m)
 	w.Start()
-	ser := server.NewMuxServer(":3033", m)
+	ser := server.NewMuxServer(":3033", client, m)
 	ser.Run()
-	//podList, err := client.CoreV1().Pods("default").List(context.Background(), v1.ListOptions{})
-	//for _, pod := range podList.Items {
-	//	err := m.OnResourceAdded(podGvr, pod)
-	//	fmt.Sprintf("err: %v", err)
-	//}
-	//time.Sleep(time.Second * 3)
-	//res := m.Query(podGvr, store.Query{
-	//	Namespace: "",
-	//	Paginate: store.Paginate{
-	//		Page:     3,
-	//		PageSize: 1,
-	//		Reverse:  true,
-	//		Sort:     "name",
-	//		Search:   "",
-	//	},
-	//})
-	//fmt.Sprintf("%v", res)
-	//make(chan struct{}) <- struct{}{}
 }

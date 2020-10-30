@@ -24,4 +24,4 @@ _log
 *.local.yaml
 .DS_Store
 _output
-config/local.yaml
+config/local.json

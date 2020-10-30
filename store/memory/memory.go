@@ -40,6 +40,11 @@ func (m *memoryStore) initResourceNamespace(gvr store.GroupVersionResource, name
 	m.resourceMap[gvr][namespace] = resourceObj{}
 }
 
+func (m *memoryStore) IsStoreGVR(gvr store.GroupVersionResource) bool {
+	_, ok := m.indexConf[gvr]
+	return ok
+}
+
 func (m *memoryStore) OnResourceAdded(gvr store.GroupVersionResource, obj interface{}) error {
 	ns, name, o := m.buildResourceWithIndex(gvr, obj)
 	m.initResourceNamespace(gvr, ns)
