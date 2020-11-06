@@ -7,6 +7,7 @@ import (
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/log"
 	"gitlab.daocloud.cn/mesh/ckube/store"
+	"k8s.io/client-go/kubernetes"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -28,6 +29,7 @@ type muxServer struct {
 	router     *mux.Router
 	server     *http.Server
 	store      store.Store
+	kube       kubernetes.Interface
 }
 
 type statusWriter struct {
@@ -69,8 +71,9 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func NewMuxServer(listenAddr string, s store.Store) Server {
+func NewMuxServer(listenAddr string, kube kubernetes.Interface, s store.Store) Server {
 	ser := muxServer{
+		kube:       kube,
 		store:      s,
 		ListenAddr: listenAddr,
 		router:     mux.NewRouter(),
@@ -116,8 +119,8 @@ func parseMethodPath(key string) (method, path string) {
 
 func jsonResp(writer http.ResponseWriter, status int, v interface{}) {
 	b, _ := json.Marshal(v)
-	writer.WriteHeader(status)
 	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(status)
 	writer.Write(b)
 }
 
@@ -142,6 +145,7 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]rout
 				}()
 				var res interface{}
 				res = route.handler(&common.ReqContext{
+					Kube:    m.kube,
 					Store:   m.store,
 					Request: r,
 					Writer:  writer,
