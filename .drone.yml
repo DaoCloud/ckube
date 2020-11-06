@@ -31,10 +31,7 @@ steps:
         - ${DRONE_BUILD_NUMBER}
     environment:
       PLUGIN_INSECURE: "true"
-    when:
-      branch:
-        - develop
-        - master
+
 
 volumes:
   - name: docker-cache
