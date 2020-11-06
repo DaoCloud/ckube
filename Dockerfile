@@ -29,4 +29,4 @@ COPY --from=build /app/dist/cacheproxy dist/cacheproxy
 ADD entrypoint.sh .
 ADD nginx.conf /etc/nginx/nginx.conf
 
-CMD ["/entrypoint.sh"]
+CMD ["/app/entrypoint.sh"]
