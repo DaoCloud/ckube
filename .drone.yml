@@ -11,29 +11,49 @@ workspace:
 #  limit: 1
 
 steps:
-  - name: 构建镜像
-    image: plugins/docker
+  - name: unit test
+    image: golang:1.14-alpine
     pull: if-not-exists
     volumes:
-      - name: docker-cache
-        path: /var/lib/docker
-      - name: docker-sock
-        path: /var/run/docker.sock
-    settings:
-      username:
-        from_secret: docker_username
-      password:
-        from_secret: docker_secret
-      dockerfile: Dockerfile
-      repo: registry.daocloud.cn/mesh/ckube
-      registry: https://registry.daocloud.cn
-      tags:
-        - ${DRONE_BUILD_NUMBER}
+      - name: go-cache
+        path: /go/pkg
     environment:
-      PLUGIN_INSECURE: "true"
+      GOPROXY: https://goproxy.io
+      GO111MODULE: on
+      GOCACHE: /go/pkg/.cache
+    commands:
+      - GOOS=linux CGO_ENABLED=0 go test ./...
 
+  - name: update
+    image: curlimages/curl
+    pull: if-not-exists
+    environment:
+      GITLAB_TOKEN:
+        from_secret: gitlab_token
+    commands:
+      - 'curl https://gitlab.daocloud.cn/api/v4/projects/mesh%2Fdsm/repository/submodules/ckube -H "PRIVATE-TOKEN: $GITLAB_TOKEN"  -X PUT -d "branch=${DRONE_BRANCH}&commit_sha=${DRONE_COMMIT_SHA}&commit_message=auto update ckube submodule@$(date)"'
+    when:
+      branch:
+        - develop
+
+  - name: update fix and feature branch
+    image: curlimages/curl
+    pull: if-not-exists
+    environment:
+      GITLAB_TOKEN:
+        from_secret: gitlab_token
+    commands:
+      - 'curl https://gitlab.daocloud.cn/api/v4/projects/mesh%2Fdsm/repository/branches -H "PRIVATE-TOKEN: $GITLAB_TOKEN"  -X POST -d "branch=${DRONE_BRANCH}&ref=develop"'
+      - 'curl https://gitlab.daocloud.cn/api/v4/projects/mesh%2Fdsm/repository/submodules/ckube -H "PRIVATE-TOKEN: $GITLAB_TOKEN"  -X PUT -d "branch=${DRONE_BRANCH}&commit_sha=${DRONE_COMMIT_SHA}&commit_message=auto update ckube submodule@$(date)"'
+    when:
+      branch:
+        - feature/*
+        - fix/*
 
 volumes:
+  - name: go-cache
+    host:
+      path: /daocloud/drone/cache/mesh/go
   - name: docker-cache
     host:
       path: /daocloud/drone/cache/mesh/docker/ckube
