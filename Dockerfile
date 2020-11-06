@@ -21,10 +21,12 @@ ADD . .
 RUN go build -ldflags "-s -w" -o ./dist/cacheproxy cmd/cacheproxy/main.go
 
 
-FROM alpine:3.9
+FROM nginx:alpine
 
 WORKDIR /app
 
 COPY --from=build /app/dist/cacheproxy dist/cacheproxy
+ADD entrypoint.sh .
+ADD nginx.conf /etc/nginx/nginx.conf
 
-CMD ["/app/dist/cacheproxy"]
+CMD ["/entrypoint.sh"]
