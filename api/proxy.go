@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/store"
+	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8labels "k8s.io/apimachinery/pkg/labels"
 	"net/http"
@@ -104,6 +105,7 @@ func Proxy(r *common.ReqContext) interface{} {
 	}
 	return map[string]interface{}{
 		"apiVersion": gvr.Version,
+		"kind":       gvr.ListKind,
 		"metadata": map[string]string{
 			"selfLink": r.Request.URL.Path,
 			//"remainingItemCount": res.Total -
@@ -128,9 +130,13 @@ func proxyPass(r *common.ReqContext) interface{} {
 	}
 
 	res, err := r.Kube.Discovery().RESTClient().Get().RequestURI(r.Request.URL.String()).DoRaw(context.Background())
+	r.Writer.Header().Set("Content-Type", "application/json")
 	if err != nil {
+		if es, ok := err.(*errors.StatusError); ok {
+			r.Writer.WriteHeader(int(es.ErrStatus.Code))
+			return res
+		}
 		return err
 	}
-	r.Writer.Header().Set("Content-Type", "application/json")
 	return res
 }

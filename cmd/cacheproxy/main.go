@@ -85,11 +85,13 @@ func main() {
 			Group:    proxy.Group,
 			Version:  proxy.Version,
 			Resource: proxy.Resource,
+			ListKind: proxy.ListKind,
 		}] = proxy.Index
 		storeGVRConfig = append(storeGVRConfig, store.GroupVersionResource{
 			Group:    proxy.Group,
 			Version:  proxy.Version,
 			Resource: proxy.Resource,
+			ListKind: proxy.ListKind,
 		})
 	}
 	m := memory.NewMemoryStore(indexConf)

@@ -17,11 +17,13 @@ func Deploy2Service(r *common.ReqContext) interface{} {
 		Group:    "",
 		Version:  "v1",
 		Resource: "pods",
+		ListKind: "PodList",
 	}
 	svcGvr := store.GroupVersionResource{
 		Group:    "",
 		Version:  "v1",
 		Resource: "services",
+		ListKind: "ServiceList",
 	}
 	res := r.Store.Query(podGvr, store.Query{
 		Namespace: ns,
