@@ -44,7 +44,6 @@ func GetK8sConfigConfigWithFile(kubeconfig, context string) *rest.Config {
 	}
 
 	config, _ = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides).ClientConfig()
-
 	return config
 }
 
@@ -95,7 +94,7 @@ func main() {
 		})
 	}
 	m := memory.NewMemoryStore(indexConf)
-	w := watcher.NewWatcher(client, storeGVRConfig, m)
+	w := watcher.NewWatcher(*GetK8sConfigConfigWithFile("", ""), client, storeGVRConfig, m)
 	w.Start()
 	ser := server.NewMuxServer(":3033", client, m)
 	ser.Run()

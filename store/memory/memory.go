@@ -43,6 +43,12 @@ func (m *memoryStore) initResourceNamespace(gvr store.GroupVersionResource, name
 func (m *memoryStore) IsStoreGVR(gvr store.GroupVersionResource) bool {
 	_, ok := m.indexConf[gvr]
 	return ok
+	//for k, _ := range m.indexConf {
+	//	if gvr.Group == k.Group && gvr.Resource == k.Resource && gvr.Version == k.Version {
+	//		return true
+	//	}
+	//}
+	//return false
 }
 
 func (m *memoryStore) OnResourceAdded(gvr store.GroupVersionResource, obj interface{}) error {
