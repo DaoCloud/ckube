@@ -51,6 +51,14 @@ func (m *memoryStore) IsStoreGVR(gvr store.GroupVersionResource) bool {
 	//return false
 }
 
+func (m *memoryStore) Clean(gvr store.GroupVersionResource) error {
+	if _, ok := m.resourceMap[gvr]; ok {
+		delete(m.resourceMap, gvr)
+		return nil
+	}
+	return fmt.Errorf("resource %s not found", gvr)
+}
+
 func (m *memoryStore) OnResourceAdded(gvr store.GroupVersionResource, obj interface{}) error {
 	ns, name, o := m.buildResourceWithIndex(gvr, obj)
 	m.initResourceNamespace(gvr, ns)

@@ -105,7 +105,7 @@ func Proxy(r *common.ReqContext) interface{} {
 	}
 	return map[string]interface{}{
 		"apiVersion": gvr.Version,
-		"kind":       gvr.ListKind,
+		"kind":       common.GetGVRKind(gvr.Group, gvr.Version, gvr.Resource),
 		"metadata": map[string]string{
 			"selfLink": r.Request.URL.Path,
 			//"remainingItemCount": res.Total -

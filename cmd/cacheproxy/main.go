@@ -71,6 +71,7 @@ func main() {
 			os.Exit(3)
 		}
 	}
+	common.InitConfig(&cfg)
 	client, err := GetKubernetesClientWithFile("", "")
 
 	if err != nil {
@@ -84,13 +85,11 @@ func main() {
 			Group:    proxy.Group,
 			Version:  proxy.Version,
 			Resource: proxy.Resource,
-			ListKind: proxy.ListKind,
 		}] = proxy.Index
 		storeGVRConfig = append(storeGVRConfig, store.GroupVersionResource{
 			Group:    proxy.Group,
 			Version:  proxy.Version,
 			Resource: proxy.Resource,
-			ListKind: proxy.ListKind,
 		})
 	}
 	m := memory.NewMemoryStore(indexConf)

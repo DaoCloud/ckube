@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/log"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -89,18 +90,11 @@ func (o ObjType) DeepCopyObject() runtime.Object {
 
 func (w *watcher) Start() error {
 	for _, r := range w.resources {
-		//if i > 0 {
-		//	continue
-		//}
 		go func(r store.GroupVersionResource) {
-			//r.Group = "networking.istio.io"
-			//r.Version = "v1alpha3"
-			//r.Resource = "virtualservices"
-			//r.ListKind = "VirtualServiceList"
 			gvk := schema.GroupVersionKind{
 				Group:   r.Group,
 				Version: r.Version,
-				Kind:    strings.TrimRight(r.ListKind, "List"),
+				Kind:    strings.TrimRight(common.GetGVRKind(r.Group, r.Version, r.Resource), "List"),
 			}
 			gv := schema.GroupVersion{
 				Group:   r.Group,
@@ -148,6 +142,7 @@ func (w *watcher) Start() error {
 									log.Warnf("watch stream(%v) error: %v", r, rr.Object)
 								}
 							} else {
+								w.store.Clean(r)
 								log.Warnf("watch stream(%v) closed", r)
 								break resultChan
 							}
@@ -158,28 +153,6 @@ func (w *watcher) Start() error {
 				}
 				calcel()
 			}
-
-			//res := w.client.Discovery().RESTClient().Get().RequestURI("").Do(context.Background())
-			//inf, err := informers.NewSharedInformerFactory(w.client, time.Hour).ForResource(schema.GroupVersionResource{
-			//	Group:    r.Group,
-			//	Version:  r.Version,
-			//	Resource: r.Resource,
-			//})
-			//if err != nil {
-			//	return
-			//}
-			//inf.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			//	AddFunc: func(obj interface{}) {
-			//		w.store.OnResourceAdded(r, obj)
-			//	},
-			//	UpdateFunc: func(oldObj, newObj interface{}) {
-			//		w.store.OnResourceModified(r, newObj)
-			//	},
-			//	DeleteFunc: func(obj interface{}) {
-			//		w.store.OnResourceDeleted(r, obj)
-			//	},
-			//})
-			//inf.Informer().Run(w.stop)
 		}(r)
 	}
 	return nil

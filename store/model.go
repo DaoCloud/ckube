@@ -4,7 +4,6 @@ type GroupVersionResource struct {
 	Group    string
 	Version  string
 	Resource string
-	ListKind string
 }
 
 type Paginate struct {
