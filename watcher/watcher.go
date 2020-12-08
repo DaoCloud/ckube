@@ -101,7 +101,7 @@ func (w *watcher) Start() error {
 				Version: r.Version,
 			}
 			w.lock.Lock()
-			if len(scheme.Scheme.KnownTypes(gv)) == 0 {
+			if _, ok := scheme.Scheme.KnownTypes(gv)[gvk.Kind]; !ok {
 				scheme.Scheme.AddKnownTypeWithName(gvk, &ObjType{})
 			}
 			w.lock.Unlock()
