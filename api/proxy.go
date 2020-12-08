@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8labels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"net/http"
 	"reflect"
 	"strings"
@@ -42,6 +44,53 @@ func findLabels(i interface{}) map[string]string {
 	return res
 }
 
+func ParseToLabelSelector(selector string) (*v1.LabelSelector, error) {
+	reqs, err := k8labels.ParseToRequirements(selector)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't parse the selector string \"%s\": %v", selector, err)
+	}
+
+	labelSelector := &v1.LabelSelector{
+		MatchLabels:      map[string]string{},
+		MatchExpressions: []v1.LabelSelectorRequirement{},
+	}
+	for _, req := range reqs {
+		var op v1.LabelSelectorOperator
+		switch req.Operator() {
+		case selection.Equals, selection.DoubleEquals:
+			vals := req.Values()
+			if vals.Len() != 1 {
+				return nil, fmt.Errorf("equals operator must have exactly one value")
+			}
+			val, ok := vals.PopAny()
+			if !ok {
+				return nil, fmt.Errorf("equals operator has exactly one value but it cannot be retrieved")
+			}
+			labelSelector.MatchLabels[req.Key()] = val
+			continue
+		case selection.In:
+			op = v1.LabelSelectorOpIn
+		case selection.NotIn, selection.NotEquals:
+			op = v1.LabelSelectorOpNotIn
+		case selection.Exists:
+			op = v1.LabelSelectorOpExists
+		case selection.DoesNotExist:
+			op = v1.LabelSelectorOpDoesNotExist
+		case selection.GreaterThan, selection.LessThan:
+			// Adding a separate case for these operators to indicate that this is deliberate
+			return nil, fmt.Errorf("%q isn't supported in label selectors", req.Operator())
+		default:
+			return nil, fmt.Errorf("%q is not a valid label selector operator", req.Operator())
+		}
+		labelSelector.MatchExpressions = append(labelSelector.MatchExpressions, v1.LabelSelectorRequirement{
+			Key:      req.Key(),
+			Operator: op,
+			Values:   req.Values().List(),
+		})
+	}
+	return labelSelector, nil
+}
+
 func Proxy(r *common.ReqContext) interface{} {
 	//version := mux.Vars(r.Request)["version"]
 	namespace := mux.Vars(r.Request)["namespace"]
@@ -64,7 +113,7 @@ func Proxy(r *common.ReqContext) interface{} {
 	var labels *v1.LabelSelector
 	if labelSelectorStr != "" {
 		var err error
-		labels, err = v1.ParseToLabelSelector(labelSelectorStr)
+		labels, err = ParseToLabelSelector(labelSelectorStr)
 		if err != nil {
 			return err
 		}
@@ -103,11 +152,18 @@ func Proxy(r *common.ReqContext) interface{} {
 		})
 		items = res.Items
 	}
+	apiVersion := ""
+	if gvr.Group == "" {
+		apiVersion = gvr.Version
+	} else {
+		apiVersion = gvr.Group + "/" + gvr.Version
+	}
 	return map[string]interface{}{
-		"apiVersion": gvr.Version,
+		"apiVersion": apiVersion,
 		"kind":       common.GetGVRKind(gvr.Group, gvr.Version, gvr.Resource),
 		"metadata": map[string]string{
 			"selfLink": r.Request.URL.Path,
+			// todo remainingItemCount
 			//"remainingItemCount": res.Total -
 		},
 		"items": items,
