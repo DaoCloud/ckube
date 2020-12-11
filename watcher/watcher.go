@@ -47,7 +47,7 @@ func (w *watcher) Stop() error {
 type ObjType struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-	Data          map[string]interface{} `json:",inline"`
+	Data          map[string]interface{}
 }
 
 func (o *ObjType) UnmarshalJSON(bytes []byte) error {
@@ -68,6 +68,30 @@ func (o *ObjType) UnmarshalJSON(bytes []byte) error {
 	delete(m, "metadata")
 	o.Data = m
 	return nil
+}
+
+func (o *ObjType) MarshalJSON() ([]byte, error) {
+	bsm, _ := json.Marshal(o.Data)
+	bso, _ := json.Marshal(struct {
+		v1.TypeMeta   `json:",inline"`
+		v1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	}{
+		TypeMeta:   o.TypeMeta,
+		ObjectMeta: o.ObjectMeta,
+	})
+	if string(bsm) == "{}" {
+		return bso, nil
+	}
+	if string(bso) == "{}" {
+		return bsm, nil
+	}
+	bsm = bsm[:len(bsm)-1]
+	bso = bso[1:]
+	bs := make([]byte, 0, len(bsm)+len(bso)+1)
+	bs = append(bs, bsm...)
+	bs = append(bs, ',')
+	bs = append(bs, bso...)
+	return bs, nil
 }
 
 func (o ObjType) GetObjectKind() schema.ObjectKind {

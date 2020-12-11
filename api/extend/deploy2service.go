@@ -2,14 +2,15 @@ package extend
 
 import (
 	"github.com/gorilla/mux"
-	"gitlab.daocloud.cn/mesh/ckube/common"
+	"gitlab.daocloud.cn/mesh/ckube/api"
+	"gitlab.daocloud.cn/mesh/ckube/page"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"gitlab.daocloud.cn/mesh/ckube/utils"
 	v1 "k8s.io/api/core/v1"
 	"strings"
 )
 
-func Deploy2Service(r *common.ReqContext) interface{} {
+func Deploy2Service(r *api.ReqContext) interface{} {
 	ns := mux.Vars(r.Request)["namespace"]
 	dep := mux.Vars(r.Request)["deployment"]
 	services := []*v1.Service{}
@@ -25,7 +26,7 @@ func Deploy2Service(r *common.ReqContext) interface{} {
 	}
 	res := r.Store.Query(podGvr, store.Query{
 		Namespace: ns,
-		Paginate: store.Paginate{
+		Paginate: page.Paginate{
 			Search: "name=" + dep,
 		},
 	})
@@ -44,7 +45,7 @@ func Deploy2Service(r *common.ReqContext) interface{} {
 	}
 	res = r.Store.Query(svcGvr, store.Query{
 		Namespace: ns,
-		Paginate:  store.Paginate{},
+		Paginate:  page.Paginate{},
 	})
 	if res.Error != nil {
 		return res.Error

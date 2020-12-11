@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"github.com/gorilla/mux"
 	"gitlab.daocloud.cn/mesh/ckube/common"
+	"gitlab.daocloud.cn/mesh/ckube/page"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8labels "k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"net/http"
 	"reflect"
 	"strings"
@@ -44,54 +43,7 @@ func findLabels(i interface{}) map[string]string {
 	return res
 }
 
-func ParseToLabelSelector(selector string) (*v1.LabelSelector, error) {
-	reqs, err := k8labels.ParseToRequirements(selector)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't parse the selector string \"%s\": %v", selector, err)
-	}
-
-	labelSelector := &v1.LabelSelector{
-		MatchLabels:      map[string]string{},
-		MatchExpressions: []v1.LabelSelectorRequirement{},
-	}
-	for _, req := range reqs {
-		var op v1.LabelSelectorOperator
-		switch req.Operator() {
-		case selection.Equals, selection.DoubleEquals:
-			vals := req.Values()
-			if vals.Len() != 1 {
-				return nil, fmt.Errorf("equals operator must have exactly one value")
-			}
-			val, ok := vals.PopAny()
-			if !ok {
-				return nil, fmt.Errorf("equals operator has exactly one value but it cannot be retrieved")
-			}
-			labelSelector.MatchLabels[req.Key()] = val
-			continue
-		case selection.In:
-			op = v1.LabelSelectorOpIn
-		case selection.NotIn, selection.NotEquals:
-			op = v1.LabelSelectorOpNotIn
-		case selection.Exists:
-			op = v1.LabelSelectorOpExists
-		case selection.DoesNotExist:
-			op = v1.LabelSelectorOpDoesNotExist
-		case selection.GreaterThan, selection.LessThan:
-			// Adding a separate case for these operators to indicate that this is deliberate
-			return nil, fmt.Errorf("%q isn't supported in label selectors", req.Operator())
-		default:
-			return nil, fmt.Errorf("%q is not a valid label selector operator", req.Operator())
-		}
-		labelSelector.MatchExpressions = append(labelSelector.MatchExpressions, v1.LabelSelectorRequirement{
-			Key:      req.Key(),
-			Operator: op,
-			Values:   req.Values().List(),
-		})
-	}
-	return labelSelector, nil
-}
-
-func Proxy(r *common.ReqContext) interface{} {
+func Proxy(r *ReqContext) interface{} {
 	//version := mux.Vars(r.Request)["version"]
 	namespace := mux.Vars(r.Request)["namespace"]
 
@@ -109,17 +61,17 @@ func Proxy(r *common.ReqContext) interface{} {
 			return proxyPass(r)
 		}
 	}
-	var paginate *store.Paginate
+	var paginate *page.Paginate
 	var labels *v1.LabelSelector
 	if labelSelectorStr != "" {
 		var err error
-		labels, err = ParseToLabelSelector(labelSelectorStr)
+		labels, err = common.ParseToLabelSelector(labelSelectorStr)
 		if err != nil {
 			return err
 		}
 		if paginateStr, ok := labels.MatchLabels[common.PaginateKey]; ok {
 			r, _ := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(paginateStr)
-			p := store.Paginate{}
+			p := page.Paginate{}
 			json.Unmarshal(r, &p)
 			paginate = &p
 			delete(labels.MatchLabels, common.PaginateKey)
@@ -130,7 +82,7 @@ func Proxy(r *common.ReqContext) interface{} {
 		// exists label selector
 		res := r.Store.Query(gvr, store.Query{
 			Namespace: namespace,
-			Paginate:  store.Paginate{}, // get all
+			Paginate:  page.Paginate{}, // get all
 		})
 		sel, err := v1.LabelSelectorAsSelector(labels)
 		if err != nil {
@@ -144,7 +96,7 @@ func Proxy(r *common.ReqContext) interface{} {
 		}
 	} else {
 		if paginate == nil {
-			paginate = &store.Paginate{}
+			paginate = &page.Paginate{}
 		}
 		res := r.Store.Query(gvr, store.Query{
 			Namespace: namespace,
@@ -170,7 +122,7 @@ func Proxy(r *common.ReqContext) interface{} {
 	}
 }
 
-func proxyPass(r *common.ReqContext) interface{} {
+func proxyPass(r *ReqContext) interface{} {
 
 	ls := r.Request.URL.Query().Get("labelSelector")
 	if ls != "" {

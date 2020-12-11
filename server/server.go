@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"gitlab.daocloud.cn/mesh/ckube/common"
+	"gitlab.daocloud.cn/mesh/ckube/api"
 	"gitlab.daocloud.cn/mesh/ckube/log"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"k8s.io/client-go/kubernetes"
@@ -144,7 +144,7 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]rout
 					}
 				}()
 				var res interface{}
-				res = route.handler(&common.ReqContext{
+				res = route.handler(&api.ReqContext{
 					Kube:    m.kube,
 					Store:   m.store,
 					Request: r,

@@ -3,10 +3,9 @@ package server
 import (
 	"gitlab.daocloud.cn/mesh/ckube/api"
 	"gitlab.daocloud.cn/mesh/ckube/api/extend"
-	"gitlab.daocloud.cn/mesh/ckube/common"
 )
 
-type HandleFunc func(r *common.ReqContext) interface{}
+type HandleFunc func(r *api.ReqContext) interface{}
 
 type route struct {
 	handler       HandleFunc

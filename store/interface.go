@@ -1,11 +1,15 @@
 package store
 
+import (
+	"gitlab.daocloud.cn/mesh/ckube/page"
+)
+
 type Filter func(obj Object) (bool, error)
 type Sort func(i, j int) bool
 
 type Query struct {
 	Namespace string
-	Paginate
+	page.Paginate
 }
 
 type Store interface {

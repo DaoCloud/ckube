@@ -1,4 +1,4 @@
-package common
+package api
 
 import (
 	"gitlab.daocloud.cn/mesh/ckube/store"
