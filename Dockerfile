@@ -33,4 +33,4 @@ ADD entrypoint.sh .
 RUN chmod +x entrypoint.sh
 ADD nginx.conf /etc/nginx/nginx.conf
 
-CMD ["/app/entrypoint.sh"]
+CMD ["sh", "/app/entrypoint.sh"]
