@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 token=$(cat /run/secrets/kubernetes.io/serviceaccount/token)
 server=${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT_HTTPS}
 
