@@ -28,6 +28,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	p = page.MakeUpResPaginate(podList, p)
+	p = page.MakeupResPaginate(podList, p)
 	fmt.Printf("total of pods: %d, got %d pods", p.Total, len(podList.Items))
 }

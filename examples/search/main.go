@@ -27,7 +27,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	p = page.MakeUpResPaginate(podList, p)
+	p = page.MakeupResPaginate(podList, p)
 	fmt.Printf("total of default namespaces: %d, got %d\n", p.Total, len(podList.Items))
 	p = page.Paginate{
 		Page:     1,
@@ -41,6 +41,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	p = page.MakeUpResPaginate(podList, p)
+	p = page.MakeupResPaginate(podList, p)
 	fmt.Printf("total of namespaces which name containes e: %d, got %d\n", p.Total, len(podList.Items))
 }

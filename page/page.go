@@ -36,7 +36,7 @@ func QueryListOptions(options v1.ListOptions, page Paginate) v1.ListOptions {
 	return options
 }
 
-func MakeUpResPaginate(l v1.ListInterface, page Paginate) Paginate {
+func MakeupResPaginate(l v1.ListInterface, page Paginate) Paginate {
 	remain := l.GetRemainingItemCount()
 	items := 0
 	val := reflect.ValueOf(l).Elem()
@@ -51,8 +51,8 @@ func MakeUpResPaginate(l v1.ListInterface, page Paginate) Paginate {
 		}
 	}
 	if remain == nil {
-		page.Total = int64(items)
-		return page
+		var i int64 = 0
+		remain = &i
 	}
 	page.Total = *remain + (page.Page-1)*page.PageSize + int64(items)
 	return page
