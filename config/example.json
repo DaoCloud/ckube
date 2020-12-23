@@ -1,0 +1,89 @@
+{
+  "proxies": [
+    {
+      "group": "",
+      "version": "v1",
+      "resource": "pods",
+      "list_kind": "PodList",
+      "index": {
+        "namespace": "{.metadata.namespace}",
+        "name": "{.metadata.name}",
+        "labels": "{.metadata.labels}",
+        "created_at": "{.metadata.creationTimestamp}"
+      }
+    },
+    {
+      "group": "",
+      "version": "v1",
+      "resource": "services",
+      "list_kind": "ServiceList",
+      "index": {
+        "namespace": "{.metadata.namespace}",
+        "name": "{.metadata.name}",
+        "labels": "{.metadata.labels}",
+        "created_at": "{.metadata.creationTimestamp}"
+      }
+    },
+    {
+      "group": "",
+      "version": "v1",
+      "resource": "namespaces",
+      "list_kind": "NamespaceList",
+      "index": {
+        "namespace": "{.metadata.namespace}",
+        "name": "{.metadata.name}",
+        "labels": "{.metadata.labels}",
+        "created_at": "{.metadata.creationTimestamp}"
+      }
+    },
+    {
+      "group": "apps",
+      "version": "v1",
+      "resource": "deployments",
+      "list_kind": "DeploymentList",
+      "index": {
+        "namespace": "{.metadata.namespace}",
+        "name": "{.metadata.name}",
+        "labels": "{.metadata.labels}",
+        "created_at": "{.metadata.creationTimestamp}"
+      }
+    },
+    {
+      "group": "apps",
+      "version": "v1",
+      "resource": "replicasets",
+      "list_kind": "ReplicaSetList",
+      "index": {
+        "namespace": "{.metadata.namespace}",
+        "name": "{.metadata.name}",
+        "labels": "{.metadata.labels}",
+        "created_at": "{.metadata.creationTimestamp}"
+      }
+    },
+
+    {
+      "group": "networking.istio.io",
+      "version": "v1alpha3",
+      "resource": "destinationrules",
+      "list_kind": "DestinationRuleList",
+      "index": {
+        "namespace": "{.metadata.namespace}",
+        "name": "{.metadata.name}",
+        "labels": "{.metadata.labels}",
+        "created_at": "{.metadata.creationTimestamp}"
+      }
+    },
+    {
+      "group": "networking.istio.io",
+      "version": "v1alpha3",
+      "resource": "virtualservices",
+      "list_kind": "VirtualServiceList",
+      "index": {
+        "namespace": "{.metadata.namespace}",
+        "name": "{.metadata.name}",
+        "labels": "{.metadata.labels}",
+        "created_at": "{.metadata.creationTimestamp}"
+      }
+    }
+  ]
+}
