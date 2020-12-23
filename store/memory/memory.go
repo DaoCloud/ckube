@@ -53,7 +53,7 @@ func (m *memoryStore) IsStoreGVR(gvr store.GroupVersionResource) bool {
 
 func (m *memoryStore) Clean(gvr store.GroupVersionResource) error {
 	if _, ok := m.resourceMap[gvr]; ok {
-		delete(m.resourceMap, gvr)
+		m.resourceMap[gvr] = namespaceResource{}
 		return nil
 	}
 	return fmt.Errorf("resource %s not found", gvr)
