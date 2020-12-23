@@ -7,6 +7,7 @@ import (
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"k8s.io/client-go/util/jsonpath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -98,7 +99,7 @@ func searchToFilter(search string) Filter {
 		if v, ok := obj.Index[key]; !ok {
 			return false, fmt.Errorf("unexpected search key: %s", key)
 		} else {
-			return strings.Contains(v, value), nil
+			return strings.Contains(strconv.Quote(v), value), nil
 		}
 	}
 }
@@ -148,7 +149,7 @@ func (m *memoryStore) Query(gvr store.GroupVersionResource, query store.Query) s
 		start = (query.Page - 1) * query.PageSize
 		end = start + query.PageSize
 		if start >= l-1 {
-			start = l - 1
+			start = l
 		}
 		if end >= l {
 			end = l

@@ -78,6 +78,7 @@ func Proxy(r *ReqContext) interface{} {
 		}
 	}
 	items := make([]interface{}, 0)
+	var total int64 = 0
 	if labels != nil && (len(labels.MatchLabels) != 0 || len(labels.MatchExpressions) != 0) {
 		// exists label selector
 		res := r.Store.Query(gvr, store.Query{
@@ -94,6 +95,7 @@ func Proxy(r *ReqContext) interface{} {
 				items = append(items, item)
 			}
 		}
+		total = int64(len(items))
 	} else {
 		if paginate == nil {
 			paginate = &page.Paginate{}
@@ -103,6 +105,7 @@ func Proxy(r *ReqContext) interface{} {
 			Paginate:  *paginate,
 		})
 		items = res.Items
+		total = res.Total
 	}
 	apiVersion := ""
 	if gvr.Group == "" {
@@ -110,13 +113,23 @@ func Proxy(r *ReqContext) interface{} {
 	} else {
 		apiVersion = gvr.Group + "/" + gvr.Version
 	}
+	var remainCount int64
+	if paginate == nil || (paginate.Page == 0 && paginate.PageSize == 0) {
+		// all item returned
+		remainCount = 0
+	} else {
+		// page starts with 1,
+		remainCount = total - (paginate.PageSize * paginate.Page)
+		if remainCount < 0 {
+			remainCount = 0
+		}
+	}
 	return map[string]interface{}{
 		"apiVersion": apiVersion,
 		"kind":       common.GetGVRKind(gvr.Group, gvr.Version, gvr.Resource),
-		"metadata": map[string]string{
-			"selfLink": r.Request.URL.Path,
-			// todo remainingItemCount
-			//"remainingItemCount": res.Total -
+		"metadata": map[string]interface{}{
+			"selfLink":           r.Request.URL.Path,
+			"remainingItemCount": remainCount,
 		},
 		"items": items,
 	}
