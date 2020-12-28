@@ -120,9 +120,6 @@ func Proxy(r *ReqContext) interface{} {
 	} else {
 		// page starts with 1,
 		remainCount = total - (paginate.PageSize * paginate.Page)
-		if remainCount < 0 {
-			remainCount = 0
-		}
 	}
 	return map[string]interface{}{
 		"apiVersion": apiVersion,
