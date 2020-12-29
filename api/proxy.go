@@ -32,12 +32,18 @@ func getGVRFromReq(req *http.Request) store.GroupVersionResource {
 func findLabels(i interface{}) map[string]string {
 	meta := reflect.ValueOf(i).Elem().FieldByName("ObjectMeta")
 	if !meta.CanInterface() {
-		return nil
+		meta = reflect.ValueOf(i).Elem().FieldByName("metadata")
+		if !meta.CanInterface() {
+			return nil
+		}
 	}
 	metaInterface := meta.Interface()
 	labels := reflect.ValueOf(metaInterface).FieldByName("Labels")
 	if !labels.CanInterface() {
-		return nil
+		labels = reflect.ValueOf(metaInterface).FieldByName("labels")
+		if !labels.CanInterface() {
+			return nil
+		}
 	}
 	res := labels.Interface().(map[string]string)
 	return res
