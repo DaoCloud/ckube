@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"reflect"
 )
 
 type Paginate struct {
@@ -38,22 +37,21 @@ func QueryListOptions(options v1.ListOptions, page Paginate) v1.ListOptions {
 
 func MakeupResPaginate(l v1.ListInterface, page Paginate) Paginate {
 	remain := l.GetRemainingItemCount()
-	items := 0
-	val := reflect.ValueOf(l).Elem()
-	for i := 0; i < val.NumField(); i++ {
-		valueField := val.Field(i)
-		typeField := val.Type().Field(i)
-
-		f := valueField.Interface()
-		val := reflect.ValueOf(f)
-		if typeField.Name == "Items" {
-			items = val.Len()
-		}
-	}
+	//val := reflect.ValueOf(l).Elem()
+	//for i := 0; i < val.NumField(); i++ {
+	//	valueField := val.Field(i)
+	//	typeField := val.Type().Field(i)
+	//
+	//	f := valueField.Interface()
+	//	val := reflect.ValueOf(f)
+	//	if typeField.Name == "Items" {
+	//		items = val.Len()
+	//	}
+	//}
 	if remain == nil {
 		var i int64 = 0
 		remain = &i
 	}
-	page.Total = *remain + (page.Page-1)*page.PageSize + int64(items)
+	page.Total = *remain + page.Page*page.PageSize
 	return page
 }
