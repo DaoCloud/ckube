@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"reflect"
 )
 
 type Paginate struct {
@@ -23,7 +24,7 @@ func QueryListOptions(options v1.ListOptions, page Paginate) v1.ListOptions {
 	}
 	s := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(bs)
 	if options.LabelSelector == "" {
-		options.LabelSelector = common.PaginateKey + "=" + s
+		options.LabelSelector = common.PaginateKey + "!=" + s
 		return options
 	}
 	ls, err := common.ParseToLabelSelector(options.LabelSelector)
@@ -37,21 +38,22 @@ func QueryListOptions(options v1.ListOptions, page Paginate) v1.ListOptions {
 
 func MakeupResPaginate(l v1.ListInterface, page Paginate) Paginate {
 	remain := l.GetRemainingItemCount()
-	//val := reflect.ValueOf(l).Elem()
-	//for i := 0; i < val.NumField(); i++ {
-	//	valueField := val.Field(i)
-	//	typeField := val.Type().Field(i)
-	//
-	//	f := valueField.Interface()
-	//	val := reflect.ValueOf(f)
-	//	if typeField.Name == "Items" {
-	//		items = val.Len()
-	//	}
-	//}
+	val := reflect.ValueOf(l).Elem()
+	items := 0
+	for i := 0; i < val.NumField(); i++ {
+		valueField := val.Field(i)
+		typeField := val.Type().Field(i)
+
+		f := valueField.Interface()
+		val := reflect.ValueOf(f)
+		if typeField.Name == "Items" {
+			items = val.Len()
+		}
+	}
 	if remain == nil {
 		var i int64 = 0
 		remain = &i
 	}
-	page.Total = *remain + page.Page*page.PageSize
+	page.Total = *remain + (page.Page-1)*page.PageSize + int64(items)
 	return page
 }
