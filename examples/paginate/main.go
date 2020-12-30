@@ -12,10 +12,6 @@ import (
 func main() {
 	client := kubernetes.NewForConfigOrDie(&rest.Config{
 		Host:    "http://127.0.0.1:3033",
-		APIPath: "",
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: true,
-		},
 	})
 	p := page.Paginate{
 		Page:     2,
