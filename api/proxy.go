@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/page"
@@ -49,6 +50,14 @@ func findLabels(i interface{}) map[string]string {
 	return res
 }
 
+func errorProxy(w http.ResponseWriter, err v1.Status) interface{} {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(int(err.Code))
+	err.Kind = "Status"
+	err.APIVersion = "v1"
+	return err
+}
+
 func Proxy(r *ReqContext) interface{} {
 	//version := mux.Vars(r.Request)["version"]
 	namespace := mux.Vars(r.Request)["namespace"]
@@ -67,19 +76,47 @@ func Proxy(r *ReqContext) interface{} {
 			return proxyPass(r)
 		}
 	}
-	var paginate *page.Paginate
+	var paginate page.Paginate
 	var labels *v1.LabelSelector
 	if labelSelectorStr != "" {
 		var err error
 		labels, err = common.ParseToLabelSelector(labelSelectorStr)
 		if err != nil {
-			return err
+			return errorProxy(r.Writer, v1.Status{
+				Status:  v1.StatusFailure,
+				Message: "parse page selector error",
+				Reason:  v1.StatusReason(err.Error()),
+				Details: nil,
+				Code:    500,
+			})
 		}
-		if paginateStr, ok := labels.MatchLabels[common.PaginateKey]; ok {
-			r, _ := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(paginateStr)
-			p := page.Paginate{}
-			json.Unmarshal(r, &p)
-			paginate = &p
+		paginateStr := ""
+		if ps, ok := labels.MatchLabels[common.PaginateKey]; ok {
+			paginateStr = ps
+		} else {
+			// Why we use MatchExpressions?
+			// to adapt dsm.daocloud.io/query=xxxx send to apiserver, which makes no results.
+			// if dsm.daocloud.io/query != xxx or dsm.daocloud.io/query not in (xxx), results exist even if it was sent to apiserver.
+			for _, m := range labels.MatchExpressions {
+				if m.Key == common.PaginateKey {
+					if len(m.Values) > 0 {
+						paginateStr = m.Values[0]
+					}
+				}
+			}
+		}
+		if paginateStr != "" {
+			rr, err := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(paginateStr)
+			if err != nil {
+				return errorProxy(r.Writer, v1.Status{
+					Status:  v1.StatusFailure,
+					Message: "parse query error",
+					Reason:  v1.StatusReason(err.Error()),
+					Details: nil,
+					Code:    400,
+				})
+			}
+			json.Unmarshal(rr, &paginate)
 			delete(labels.MatchLabels, common.PaginateKey)
 		}
 	}
@@ -89,11 +126,20 @@ func Proxy(r *ReqContext) interface{} {
 		// exists label selector
 		res := r.Store.Query(gvr, store.Query{
 			Namespace: namespace,
-			Paginate:  page.Paginate{}, // get all
+			Paginate: page.Paginate{
+				Sort:    paginate.Sort,
+				Search:  paginate.Search,
+			}, // get all
 		})
 		sel, err := v1.LabelSelectorAsSelector(labels)
 		if err != nil {
-			return err
+			return errorProxy(r.Writer, v1.Status{
+				Status:  v1.StatusFailure,
+				Message: "label selector parse error",
+				Reason:  v1.StatusReason(err.Error()),
+				Details: nil,
+				Code:    400,
+			})
 		}
 		for _, item := range res.Items {
 			l := findLabels(item)
@@ -101,14 +147,30 @@ func Proxy(r *ReqContext) interface{} {
 				items = append(items, item)
 			}
 		}
-		total = int64(len(items))
-	} else {
-		if paginate == nil {
-			paginate = &page.Paginate{}
+
+		// manually slice items
+		var l = int64(len(items))
+		var start, end int64 = 0, 0
+		if paginate.PageSize == 0 {
+			// all resources
+			start = 0
+			end = l
+		} else {
+			start = (paginate.Page - 1) * paginate.PageSize
+			end = start + paginate.PageSize
+			if start >= l-1 {
+				start = l
+			}
+			if end >= l {
+				end = l
+			}
 		}
+		items = items[start:end]
+		total = l
+	} else {
 		res := r.Store.Query(gvr, store.Query{
 			Namespace: namespace,
-			Paginate:  *paginate,
+			Paginate:  paginate,
 		})
 		items = res.Items
 		total = res.Total
@@ -120,12 +182,22 @@ func Proxy(r *ReqContext) interface{} {
 		apiVersion = gvr.Group + "/" + gvr.Version
 	}
 	var remainCount int64
-	if paginate == nil || (paginate.Page == 0 && paginate.PageSize == 0) {
+	if paginate.Page == 0 && paginate.PageSize == 0 {
 		// all item returned
 		remainCount = 0
 	} else {
 		// page starts with 1,
 		remainCount = total - (paginate.PageSize * paginate.Page)
+		if remainCount < 0 && len(items) == 0 {
+			return errorProxy(r.Writer, v1.Status{
+				Status:  v1.StatusFailure,
+				Message: "out of page",
+				Reason:  v1.StatusReason(fmt.Sprintf("request resources out of page: %d", remainCount)),
+				Code:    400,
+			})
+		} else if remainCount < 0 {
+			remainCount = 0
+		}
 	}
 	return map[string]interface{}{
 		"apiVersion": apiVersion,
@@ -154,11 +226,9 @@ func proxyPass(r *ReqContext) interface{} {
 	}
 
 	res, err := r.Kube.Discovery().RESTClient().Get().RequestURI(r.Request.URL.String()).DoRaw(context.Background())
-	r.Writer.Header().Set("Content-Type", "application/json")
 	if err != nil {
 		if es, ok := err.(*errors.StatusError); ok {
-			r.Writer.WriteHeader(int(es.ErrStatus.Code))
-			return res
+			return errorProxy(r.Writer, es.ErrStatus)
 		}
 		return err
 	}

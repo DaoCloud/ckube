@@ -12,9 +12,6 @@ import (
 func main() {
 	client := kubernetes.NewForConfigOrDie(&rest.Config{
 		Host: "http://127.0.0.1:3033",
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: true,
-		},
 	})
 	p := page.Paginate{
 		// full search
@@ -32,7 +29,7 @@ func main() {
 	p = page.Paginate{
 		Page:     1,
 		PageSize: 5,
-		Search:   `name=e`,
+		Search:   `e`,
 	}
 	podList, err = client.CoreV1().Namespaces().List(
 		context.Background(),
@@ -42,5 +39,5 @@ func main() {
 		panic(err)
 	}
 	p = page.MakeupResPaginate(podList, p)
-	fmt.Printf("total of namespaces which name containes e: %d, got %d\n", p.Total, len(podList.Items))
+	fmt.Printf("total of namespaces which containes e: %d, got %d\n", p.Total, len(podList.Items))
 }
