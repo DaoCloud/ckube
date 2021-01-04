@@ -359,7 +359,7 @@ func TestMemoryStore_Query(t *testing.T) {
 			query: store.Query{
 				Namespace: "test",
 				Paginate: page.Paginate{
-					Sort: "uid",
+					Sort: "uid!str",
 				},
 			},
 			res: store.QueryResult{
@@ -436,6 +436,33 @@ func TestMemoryStore_Query(t *testing.T) {
 					},
 				}),
 				Total: 3,
+			},
+		},
+		{
+			name: "sort invalid key convert",
+			gvr:  podsGVR,
+			resources: append([]runtime.Object{}, &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test1",
+					Namespace: "test",
+					UID:       "2",
+				},
+			}, &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test5",
+					Namespace: "test",
+					UID:       "1",
+				},
+			}),
+			query: store.Query{
+				Namespace: "test",
+				Paginate: page.Paginate{
+					Sort: "name!int",
+				},
+			},
+			res: store.QueryResult{
+				Error: fmt.Errorf("value of `name` can not convert to int"),
+				Total: 0,
 			},
 		},
 		{

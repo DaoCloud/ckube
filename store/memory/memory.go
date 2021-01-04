@@ -80,6 +80,7 @@ func (m *memoryStore) OnResourceDeleted(gvr store.GroupVersionResource, obj inte
 	delete(m.resourceMap[gvr][ns], name)
 	return nil
 }
+
 //
 //type Filter func(obj store.Object) (bool, error)
 //
@@ -200,6 +201,7 @@ func sortObjs(objs []store.Object, s string) ([]store.Object, error) {
 		}
 		sorts = append(sorts, st)
 	}
+	var sortErr error = nil
 	sort.Slice(objs, func(i, j int) bool {
 		for _, s := range sorts {
 			r := false
@@ -207,8 +209,17 @@ func sortObjs(objs []store.Object, s string) ([]store.Object, error) {
 			vis := objs[i].Index[s.key]
 			vjs := objs[j].Index[s.key]
 			if s.typ == common.KeyTypeInt {
-				vi, _ := strconv.Atoi(vis)
-				vj, _ := strconv.Atoi(vjs)
+				keyErr := fmt.Errorf("value of `%s` can not convert to int", s.key)
+				vi, err := strconv.Atoi(vis)
+				if err != nil {
+					sortErr = keyErr
+					break
+				}
+				vj, err := strconv.Atoi(vjs)
+				if err != nil {
+					sortErr = keyErr
+					break
+				}
 				r = vi < vj
 				equals = vi == vj
 			} else {
@@ -225,7 +236,7 @@ func sortObjs(objs []store.Object, s string) ([]store.Object, error) {
 		}
 		return true
 	})
-	return objs, nil
+	return objs, sortErr
 }
 
 func (m *memoryStore) Query(gvr store.GroupVersionResource, query store.Query) store.QueryResult {
