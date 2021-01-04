@@ -127,8 +127,8 @@ func Proxy(r *ReqContext) interface{} {
 		res := r.Store.Query(gvr, store.Query{
 			Namespace: namespace,
 			Paginate: page.Paginate{
-				Sort:    paginate.Sort,
-				Search:  paginate.Search,
+				Sort:   paginate.Sort,
+				Search: paginate.Search,
 			}, // get all
 		})
 		sel, err := v1.LabelSelectorAsSelector(labels)
@@ -232,5 +232,6 @@ func proxyPass(r *ReqContext) interface{} {
 		}
 		return err
 	}
+	r.Writer.Header().Set("Content-Type", "application/json")
 	return res
 }
