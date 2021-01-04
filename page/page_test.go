@@ -80,3 +80,146 @@ func TestQueryListOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestPaginate_Match(t *testing.T) {
+	cases := []struct {
+		name  string
+		index map[string]string
+		p     Paginate
+		match bool
+		err   error
+	}{
+		{
+			name: "match fuzzy",
+			index: map[string]string{
+				"name": "test",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "qq",
+			},
+			match: true,
+			err:   nil,
+		},
+		{
+			name: "match fuzzy 2",
+			index: map[string]string{
+				"name": "test",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "test",
+			},
+			match: true,
+			err:   nil,
+		},
+		{
+			name: "contains",
+			index: map[string]string{
+				"name": "test",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "name=est",
+			},
+			match: true,
+			err:   nil,
+		},
+		{
+			name: "full match",
+			index: map[string]string{
+				"name": "test",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "name=\"test\"",
+			},
+			match: true,
+			err:   nil,
+		},
+		{
+			name: "full match 2",
+			index: map[string]string{
+				"name": "test",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "name=\"est\"",
+			},
+			match: false,
+			err:   nil,
+		},
+		{
+			name: "advance match",
+			index: map[string]string{
+				"name": "test",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "__ckube_as__: name in (test)",
+			},
+			match: true,
+			err:   nil,
+		},
+		{
+			name: "advance match not equal",
+			index: map[string]string{
+				"name": "test",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "__ckube_as__: name != test",
+			},
+			match: false,
+			err:   nil,
+		},
+		{
+			name: "multiple",
+			index: map[string]string{
+				"name": "test",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "ok=qq; __ckube_as__: name=test",
+			},
+			match: true,
+			err:   nil,
+		},
+		{
+			name: "key error",
+			index: map[string]string{
+				"name": "test",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "xx=test",
+			},
+			match: false,
+			err:   fmt.Errorf("unexpected search key: xx"),
+		},
+	}
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("%d-%s", i, c.name), func(t *testing.T) {
+			match, err := c.p.Match(c.index)
+			assert.Equal(t, c.match, match)
+			assert.Equal(t, c.err, err)
+		})
+	}
+}
+
+func TestPaginate_Namespaces(t *testing.T) {
+	p := Paginate{}
+	err := p.Namespaces([]string{"test", "test1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "__ckube_as__:namespace in (test,test1);", p.Search)
+	p = Paginate{
+		Search: "test=ok",
+	}
+	err = p.Namespaces([]string{"test", "test1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "__ckube_as__:namespace in (test,test1);test=ok", p.Search)
+}
