@@ -10,13 +10,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
-type resourceObj map[string]store.Object
+type resourceObj struct {
+	lock   *sync.RWMutex
+	objMap map[string]store.Object
+}
 
 type namespaceResource map[string]resourceObj
 
-// todo add lock
 type memoryStore struct {
 	resourceMap map[store.GroupVersionResource]namespaceResource
 	indexConf   map[store.GroupVersionResource]map[string]string
@@ -39,18 +42,15 @@ func (m *memoryStore) initResourceNamespace(gvr store.GroupVersionResource, name
 	if _, ok := m.resourceMap[gvr][namespace]; ok {
 		return
 	}
-	m.resourceMap[gvr][namespace] = resourceObj{}
+	m.resourceMap[gvr][namespace] = resourceObj{
+		lock:   &sync.RWMutex{},
+		objMap: map[string]store.Object{},
+	}
 }
 
 func (m *memoryStore) IsStoreGVR(gvr store.GroupVersionResource) bool {
 	_, ok := m.indexConf[gvr]
 	return ok
-	//for k, _ := range m.indexConf {
-	//	if gvr.Group == k.Group && gvr.Resource == k.Resource && gvr.Version == k.Version {
-	//		return true
-	//	}
-	//}
-	//return false
 }
 
 func (m *memoryStore) Clean(gvr store.GroupVersionResource) error {
@@ -64,78 +64,28 @@ func (m *memoryStore) Clean(gvr store.GroupVersionResource) error {
 func (m *memoryStore) OnResourceAdded(gvr store.GroupVersionResource, obj interface{}) error {
 	ns, name, o := m.buildResourceWithIndex(gvr, obj)
 	m.initResourceNamespace(gvr, ns)
-	m.resourceMap[gvr][ns][name] = o
+	m.resourceMap[gvr][ns].lock.Lock()
+	defer m.resourceMap[gvr][ns].lock.Unlock()
+	m.resourceMap[gvr][ns].objMap[name] = o
 	return nil
 }
 
 func (m *memoryStore) OnResourceModified(gvr store.GroupVersionResource, obj interface{}) error {
 	ns, name, o := m.buildResourceWithIndex(gvr, obj)
-	m.resourceMap[gvr][ns][name] = o
+	m.resourceMap[gvr][ns].lock.Lock()
+	defer m.resourceMap[gvr][ns].lock.Unlock()
+	m.resourceMap[gvr][ns].objMap[name] = o
 	return nil
 }
 
 func (m *memoryStore) OnResourceDeleted(gvr store.GroupVersionResource, obj interface{}) error {
 	ns, name, _ := m.buildResourceWithIndex(gvr, obj)
 	m.initResourceNamespace(gvr, ns)
-	delete(m.resourceMap[gvr][ns], name)
+	m.resourceMap[gvr][ns].lock.Lock()
+	defer m.resourceMap[gvr][ns].lock.Unlock()
+	delete(m.resourceMap[gvr][ns].objMap, name)
 	return nil
 }
-
-//
-//type Filter func(obj store.Object) (bool, error)
-//
-//func searchToFilter(search string) (Filter, error) {
-//	if search == "" {
-//		return func(obj store.Object) (bool, error) {
-//			return true, nil
-//		}, nil
-//	}
-//	if strings.HasPrefix(search, common.AdvancedSearchPrefix) {
-//		if len(search) == len(common.AdvancedSearchPrefix) {
-//			return nil, fmt.Errorf("search format error")
-//		}
-//		selectorStr := search[len(common.AdvancedSearchPrefix):]
-//		s, err := common.ParseToLabelSelector(selectorStr)
-//		if err != nil {
-//			return nil, err
-//		}
-//		ss, err := v1.LabelSelectorAsSelector(s)
-//		if err != nil {
-//			return nil, err
-//		}
-//		return func(obj store.Object) (bool, error) {
-//			return ss.Matches(labels.Set(obj.Index)), nil
-//		}, nil
-//	}
-//	key := ""
-//	value := ""
-//	indexOfEqual := strings.Index(search, "=")
-//	if indexOfEqual < 0 {
-//		// fuzzy search
-//		value = search
-//	} else {
-//		key = search[:indexOfEqual]
-//		if indexOfEqual < len(search)-1 {
-//			value = search[indexOfEqual+1:]
-//		}
-//	}
-//	return func(obj store.Object) (bool, error) {
-//		if key != "" {
-//			if v, ok := obj.Index[key]; !ok {
-//				return false, fmt.Errorf("unexpected search key: %s", key)
-//			} else {
-//				return strings.Contains(strconv.Quote(v), value), nil
-//			}
-//		}
-//		// fuzzy search
-//		for _, v := range obj.Index {
-//			if strings.Contains(strconv.Quote(v), value) {
-//				return true, nil
-//			}
-//		}
-//		return false, nil
-//	}, nil
-//}
 
 type innerSort struct {
 	key     string
@@ -244,13 +194,15 @@ func (m *memoryStore) Query(gvr store.GroupVersionResource, query store.Query) s
 	resources := make([]store.Object, 0)
 	for ns, robj := range m.resourceMap[gvr] {
 		if query.Namespace == "" || query.Namespace == ns {
-			for _, obj := range robj {
+			robj.lock.RLock()
+			for _, obj := range robj.objMap {
 				if ok, err := query.Match(obj.Index); ok {
 					resources = append(resources, obj)
 				} else if err != nil {
 					res.Error = err
 				}
 			}
+			robj.lock.RUnlock()
 		}
 	}
 	l := int64(len(resources))
