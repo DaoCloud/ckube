@@ -559,6 +559,12 @@ func TestMemoryStore_Query(t *testing.T) {
 				},
 			}, &v1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
+					Name:      "0tes",
+					Namespace: "test",
+					UID:       "3",
+				},
+			}, &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test3",
 					Namespace: "test",
 					UID:       "3",
@@ -587,7 +593,7 @@ func TestMemoryStore_Query(t *testing.T) {
 				Paginate: page.Paginate{
 					Page:     1,
 					PageSize: 3,
-					Search:   "__ckube_as__:name notin (ok)",
+					Search:   "name=test; __ckube_as__:name notin (ok)",
 					Sort:     "namespace,uid!int",
 				},
 			},

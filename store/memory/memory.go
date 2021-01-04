@@ -6,8 +6,6 @@ import (
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/log"
 	"gitlab.daocloud.cn/mesh/ckube/store"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/jsonpath"
 	"sort"
 	"strconv"
@@ -82,61 +80,61 @@ func (m *memoryStore) OnResourceDeleted(gvr store.GroupVersionResource, obj inte
 	delete(m.resourceMap[gvr][ns], name)
 	return nil
 }
-
-type Filter func(obj store.Object) (bool, error)
-
-func searchToFilter(search string) (Filter, error) {
-	if search == "" {
-		return func(obj store.Object) (bool, error) {
-			return true, nil
-		}, nil
-	}
-	if strings.HasPrefix(search, common.AdvancedSearchPrefix) {
-		if len(search) == len(common.AdvancedSearchPrefix) {
-			return nil, fmt.Errorf("search format error")
-		}
-		selectorStr := search[len(common.AdvancedSearchPrefix):]
-		s, err := common.ParseToLabelSelector(selectorStr)
-		if err != nil {
-			return nil, err
-		}
-		ss, err := v1.LabelSelectorAsSelector(s)
-		if err != nil {
-			return nil, err
-		}
-		return func(obj store.Object) (bool, error) {
-			return ss.Matches(labels.Set(obj.Index)), nil
-		}, nil
-	}
-	key := ""
-	value := ""
-	indexOfEqual := strings.Index(search, "=")
-	if indexOfEqual < 0 {
-		// fuzzy search
-		value = search
-	} else {
-		key = search[:indexOfEqual]
-		if indexOfEqual < len(search)-1 {
-			value = search[indexOfEqual+1:]
-		}
-	}
-	return func(obj store.Object) (bool, error) {
-		if key != "" {
-			if v, ok := obj.Index[key]; !ok {
-				return false, fmt.Errorf("unexpected search key: %s", key)
-			} else {
-				return strings.Contains(strconv.Quote(v), value), nil
-			}
-		}
-		// fuzzy search
-		for _, v := range obj.Index {
-			if strings.Contains(strconv.Quote(v), value) {
-				return true, nil
-			}
-		}
-		return false, nil
-	}, nil
-}
+//
+//type Filter func(obj store.Object) (bool, error)
+//
+//func searchToFilter(search string) (Filter, error) {
+//	if search == "" {
+//		return func(obj store.Object) (bool, error) {
+//			return true, nil
+//		}, nil
+//	}
+//	if strings.HasPrefix(search, common.AdvancedSearchPrefix) {
+//		if len(search) == len(common.AdvancedSearchPrefix) {
+//			return nil, fmt.Errorf("search format error")
+//		}
+//		selectorStr := search[len(common.AdvancedSearchPrefix):]
+//		s, err := common.ParseToLabelSelector(selectorStr)
+//		if err != nil {
+//			return nil, err
+//		}
+//		ss, err := v1.LabelSelectorAsSelector(s)
+//		if err != nil {
+//			return nil, err
+//		}
+//		return func(obj store.Object) (bool, error) {
+//			return ss.Matches(labels.Set(obj.Index)), nil
+//		}, nil
+//	}
+//	key := ""
+//	value := ""
+//	indexOfEqual := strings.Index(search, "=")
+//	if indexOfEqual < 0 {
+//		// fuzzy search
+//		value = search
+//	} else {
+//		key = search[:indexOfEqual]
+//		if indexOfEqual < len(search)-1 {
+//			value = search[indexOfEqual+1:]
+//		}
+//	}
+//	return func(obj store.Object) (bool, error) {
+//		if key != "" {
+//			if v, ok := obj.Index[key]; !ok {
+//				return false, fmt.Errorf("unexpected search key: %s", key)
+//			} else {
+//				return strings.Contains(strconv.Quote(v), value), nil
+//			}
+//		}
+//		// fuzzy search
+//		for _, v := range obj.Index {
+//			if strings.Contains(strconv.Quote(v), value) {
+//				return true, nil
+//			}
+//		}
+//		return false, nil
+//	}, nil
+//}
 
 type innerSort struct {
 	key     string
@@ -233,22 +231,13 @@ func sortObjs(objs []store.Object, s string) ([]store.Object, error) {
 func (m *memoryStore) Query(gvr store.GroupVersionResource, query store.Query) store.QueryResult {
 	res := store.QueryResult{}
 	resources := make([]store.Object, 0)
-	filter, err := searchToFilter(query.Search)
-	if err != nil {
-		res.Error = err
-		return res
-	}
 	for ns, robj := range m.resourceMap[gvr] {
 		if query.Namespace == "" || query.Namespace == ns {
 			for _, obj := range robj {
-				if filter == nil {
+				if ok, err := query.Match(obj.Index); ok {
 					resources = append(resources, obj)
-				} else {
-					if ok, err := filter(obj); ok {
-						resources = append(resources, obj)
-					} else if err != nil {
-						res.Error = err
-					}
+				} else if err != nil {
+					res.Error = err
 				}
 			}
 		}
@@ -257,7 +246,7 @@ func (m *memoryStore) Query(gvr store.GroupVersionResource, query store.Query) s
 	if l == 0 {
 		return res
 	}
-	resources, err = sortObjs(resources, query.Sort)
+	resources, err := sortObjs(resources, query.Sort)
 	if err != nil {
 		res.Error = err
 		return res

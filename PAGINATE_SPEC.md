@@ -12,6 +12,8 @@ PageSize 表示每页数量，为 0  表示不分页，小于 0 为非法。
 
 ### Search DSL
 CKube 的搜索支持模糊搜索（Fuzzy Search）,精准匹配和高级搜索。
+如果同时有模糊搜索、精准字段匹配或高级搜索的多个，以 `;` 分割，如果需要搜索 `;`，请使用两个： `;;`。
+如 `name=e; __ckube_as__:namespaces in (default, test)`
 
 #### 模糊搜索 Fuzzy Search
 模糊搜索的句式为任意字符串，但是中间不能包含 `=`.
