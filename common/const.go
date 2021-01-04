@@ -8,4 +8,5 @@ const (
 	KeyTypeSep           = "!"
 	KeyTypeInt           = "int"
 	KeyTypeStr           = "str"
+	SearchPartsSep       = ';'
 )
