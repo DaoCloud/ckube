@@ -209,13 +209,13 @@ func sortObjs(objs []store.Object, s string) ([]store.Object, error) {
 			vis := objs[i].Index[s.key]
 			vjs := objs[j].Index[s.key]
 			if s.typ == common.KeyTypeInt {
-				keyErr := fmt.Errorf("value of `%s` can not convert to int", s.key)
-				vi, err := strconv.Atoi(vis)
+				keyErr := fmt.Errorf("value of `%s` can not convert to number", s.key)
+				vi, err := strconv.ParseFloat(vis, 64)
 				if err != nil {
 					sortErr = keyErr
 					break
 				}
-				vj, err := strconv.Atoi(vjs)
+				vj, err := strconv.ParseFloat(vjs, 64)
 				if err != nil {
 					sortErr = keyErr
 					break

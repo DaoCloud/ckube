@@ -461,7 +461,7 @@ func TestMemoryStore_Query(t *testing.T) {
 				},
 			},
 			res: store.QueryResult{
-				Error: fmt.Errorf("value of `name` can not convert to int"),
+				Error: fmt.Errorf("value of `name` can not convert to number"),
 				Total: 0,
 			},
 		},
