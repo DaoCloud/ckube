@@ -125,12 +125,12 @@ func searchToFilter(search string) (Filter, error) {
 			if v, ok := obj.Index[key]; !ok {
 				return false, fmt.Errorf("unexpected search key: %s", key)
 			} else {
-				return v == value, nil
+				return strings.Contains(strconv.Quote(v), value), nil
 			}
 		}
 		// fuzzy search
 		for _, v := range obj.Index {
-			if strings.Contains(v, value) {
+			if strings.Contains(strconv.Quote(v), value) {
 				return true, nil
 			}
 		}

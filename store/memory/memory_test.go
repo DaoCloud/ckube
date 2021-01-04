@@ -186,7 +186,7 @@ func TestMemoryStore_Query(t *testing.T) {
 			query: store.Query{
 				Namespace: "test",
 				Paginate: page.Paginate{
-					Search: "name=llo",
+					Search: "name=\"llo\"",
 				},
 			},
 			res: store.QueryResult{

@@ -15,7 +15,7 @@ func main() {
 	})
 	p := page.Paginate{
 		// full search
-		Search: `name=default`,
+		Search: `name="default"`,
 	}
 	podList, err := client.CoreV1().Namespaces().List(
 		context.Background(),
