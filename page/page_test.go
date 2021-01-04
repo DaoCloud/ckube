@@ -23,7 +23,7 @@ func TestQueryListOptions(t *testing.T) {
 				Page: 1,
 			},
 			out: v1.ListOptions{
-				LabelSelector: "dsm.daocloud.io/query=eyJwYWdlIjoxfQ",
+				LabelSelector: "dsm.daocloud.io/query notin (eyJwYWdlIjoxfQ)",
 			},
 		},
 		{
@@ -33,7 +33,7 @@ func TestQueryListOptions(t *testing.T) {
 				PageSize: 1,
 			},
 			out: v1.ListOptions{
-				LabelSelector: "dsm.daocloud.io/query=eyJwYWdlIjoxLCJwYWdlX3NpemUiOjF9",
+				LabelSelector: "dsm.daocloud.io/query notin (eyJwYWdlIjoxLCJwYWdlX3NpemUiOjF9)",
 			},
 		},
 		{
@@ -43,7 +43,7 @@ func TestQueryListOptions(t *testing.T) {
 				Search: "name=ok",
 			},
 			out: v1.ListOptions{
-				LabelSelector: "dsm.daocloud.io/query=eyJwYWdlIjoxLCJzZWFyY2giOiJuYW1lPW9rIn0",
+				LabelSelector: "dsm.daocloud.io/query notin (eyJwYWdlIjoxLCJzZWFyY2giOiJuYW1lPW9rIn0)",
 			},
 		},
 		{
@@ -56,27 +56,27 @@ func TestQueryListOptions(t *testing.T) {
 				Search: "name=ok",
 			},
 			out: v1.ListOptions{
-				LabelSelector: "dsm.daocloud.io/query=eyJwYWdlIjoxLCJzZWFyY2giOiJuYW1lPW9rIn0,test=1",
+				LabelSelector: "dsm.daocloud.io/query notin (eyJwYWdlIjoxLCJzZWFyY2giOiJuYW1lPW9rIn0),test=1",
 			},
 		},
 		{
 			name: "multi label",
 			inOption: v1.ListOptions{
-				LabelSelector: "test=1,dsm.daocloud.io/query=eyJwYWdlIjoxfQ",
+				LabelSelector: "test=1,dsm.daocloud.io/query!=eyJwYWdlIjoxfQ",
 			},
 			inPage: Paginate{
 				Page:   1,
 				Search: "name=ok",
 			},
 			out: v1.ListOptions{
-				LabelSelector: "dsm.daocloud.io/query=eyJwYWdlIjoxLCJzZWFyY2giOiJuYW1lPW9rIn0,test=1",
+				LabelSelector: "dsm.daocloud.io/query notin (eyJwYWdlIjoxLCJzZWFyY2giOiJuYW1lPW9rIn0),test=1",
 			},
 		},
 	}
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("%d---%s", i, c.name), func(t *testing.T) {
 			out := QueryListOptions(c.inOption, c.inPage)
-			assert.Equal(t, out, c.out)
+			assert.Equal(t, c.out, out)
 		})
 	}
 }

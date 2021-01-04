@@ -15,7 +15,7 @@ func main() {
 	})
 	p := page.Paginate{
 		// full search
-		Search: `name="default"`,
+		Search: `name=default`,
 	}
 	podList, err := client.CoreV1().Namespaces().List(
 		context.Background(),
@@ -29,7 +29,7 @@ func main() {
 	p = page.Paginate{
 		Page:     1,
 		PageSize: 5,
-		Search:   `name=e`,
+		Search:   `e`,
 	}
 	podList, err = client.CoreV1().Namespaces().List(
 		context.Background(),
@@ -39,5 +39,5 @@ func main() {
 		panic(err)
 	}
 	p = page.MakeupResPaginate(podList, p)
-	fmt.Printf("total of namespaces which name containes e: %d, got %d\n", p.Total, len(podList.Items))
+	fmt.Printf("total of namespaces which containes e: %d, got %d\n", p.Total, len(podList.Items))
 }

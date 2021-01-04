@@ -3,6 +3,7 @@ package page
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
@@ -12,7 +13,6 @@ type Paginate struct {
 	Page     int64  `json:"page,omitempty"`
 	PageSize int64  `json:"page_size,omitempty"`
 	Total    int64  `json:"total,omitempty"`
-	Reverse  bool   `json:"reverse,omitempty"`
 	Sort     string `json:"sort,omitempty"`
 	Search   string `json:"search,omitempty"`
 }
@@ -24,14 +24,24 @@ func QueryListOptions(options v1.ListOptions, page Paginate) v1.ListOptions {
 	}
 	s := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(bs)
 	if options.LabelSelector == "" {
-		options.LabelSelector = common.PaginateKey + "!=" + s
+		options.LabelSelector = fmt.Sprintf("%s notin (%s)", common.PaginateKey, s)
 		return options
 	}
 	ls, err := common.ParseToLabelSelector(options.LabelSelector)
 	if err != nil {
 		return options
 	}
-	ls.MatchLabels[common.PaginateKey] = s
+	mes := []v1.LabelSelectorRequirement{{
+		Key:      common.PaginateKey,
+		Operator: v1.LabelSelectorOpNotIn,
+		Values:   []string{s},
+	}}
+	for _, m := range ls.MatchExpressions {
+		if m.Key != common.PaginateKey {
+			mes = append(mes, m)
+		}
+	}
+	ls.MatchExpressions = mes
 	options.LabelSelector = v1.FormatLabelSelector(ls)
 	return options
 }

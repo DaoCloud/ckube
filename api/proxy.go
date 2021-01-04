@@ -127,7 +127,6 @@ func Proxy(r *ReqContext) interface{} {
 		res := r.Store.Query(gvr, store.Query{
 			Namespace: namespace,
 			Paginate: page.Paginate{
-				Reverse: paginate.Reverse,
 				Sort:    paginate.Sort,
 				Search:  paginate.Search,
 			}, // get all
