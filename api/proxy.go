@@ -180,7 +180,7 @@ func Proxy(r *ReqContext) interface{} {
 		} else {
 			start = (paginate.Page - 1) * paginate.PageSize
 			end = start + paginate.PageSize
-			if start >= l-1 {
+			if start >= l {
 				start = l
 			}
 			if end >= l {
