@@ -47,7 +47,13 @@ func (p *Paginate) SearchParts() []string {
 		}
 	}
 	parts = append(parts, search[start:])
-	return parts
+	ps := []string{}
+	for _, p := range parts {
+		if p != "" {
+			ps = append(ps, p)
+		}
+	}
+	return ps
 }
 
 func Match(m map[string]string, searchParts []string) (bool, error) {
@@ -184,10 +190,10 @@ func QueryListOptions(options v1.ListOptions, page Paginate) v1.ListOptions {
 		return options
 	}
 	s := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(bs)
-	if options.LabelSelector == "" {
-		options.LabelSelector = fmt.Sprintf("%s notin (%s)", common.PaginateKey, s)
-		return options
-	}
+	//if options.LabelSelector == "" {
+	//	options.LabelSelector = fmt.Sprintf("%s notin (%s)", common.PaginateKey, s)
+	//	return options
+	//}
 	ls, err := common.ParseToLabelSelector(options.LabelSelector)
 	if err != nil {
 		return options
@@ -195,7 +201,7 @@ func QueryListOptions(options v1.ListOptions, page Paginate) v1.ListOptions {
 	mes := []v1.LabelSelectorRequirement{{
 		Key:      common.PaginateKey,
 		Operator: v1.LabelSelectorOpNotIn,
-		Values:   []string{s},
+		Values:   common.SplittingValue(s),
 	}}
 	for _, m := range ls.MatchExpressions {
 		if m.Key != common.PaginateKey {

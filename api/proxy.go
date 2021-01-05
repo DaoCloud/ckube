@@ -93,17 +93,31 @@ func Proxy(r *ReqContext) interface{} {
 		paginateStr := ""
 		if ps, ok := labels.MatchLabels[common.PaginateKey]; ok {
 			paginateStr = ps
+			delete(labels.MatchLabels, common.PaginateKey)
 		} else {
+			mes := []v1.LabelSelectorRequirement{}
 			// Why we use MatchExpressions?
 			// to adapt dsm.daocloud.io/query=xxxx send to apiserver, which makes no results.
 			// if dsm.daocloud.io/query != xxx or dsm.daocloud.io/query not in (xxx), results exist even if it was sent to apiserver.
 			for _, m := range labels.MatchExpressions {
 				if m.Key == common.PaginateKey {
 					if len(m.Values) > 0 {
-						paginateStr = m.Values[0]
+						paginateStr, err = common.MergeValues(m.Values)
+						if err != nil {
+							return errorProxy(r.Writer, v1.Status{
+								Status:  v1.StatusFailure,
+								Message: "parse page selector error",
+								Reason:  v1.StatusReason(err.Error()),
+								Details: nil,
+								Code:    500,
+							})
+						}
 					}
+				} else {
+					mes = append(mes, m)
 				}
 			}
+			labels.MatchExpressions = mes
 		}
 		if paginateStr != "" {
 			rr, err := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(paginateStr)
@@ -131,6 +145,14 @@ func Proxy(r *ReqContext) interface{} {
 				Search: paginate.Search,
 			}, // get all
 		})
+		if res.Error != nil {
+			return errorProxy(r.Writer, v1.Status{
+				Status:  v1.StatusFailure,
+				Message: "query error",
+				Reason:  v1.StatusReason(res.Error.Error()),
+				Code:    400,
+			})
+		}
 		sel, err := v1.LabelSelectorAsSelector(labels)
 		if err != nil {
 			return errorProxy(r.Writer, v1.Status{
@@ -172,6 +194,14 @@ func Proxy(r *ReqContext) interface{} {
 			Namespace: namespace,
 			Paginate:  paginate,
 		})
+		if res.Error != nil {
+			return errorProxy(r.Writer, v1.Status{
+				Status:  v1.StatusFailure,
+				Message: "query error",
+				Reason:  v1.StatusReason(res.Error.Error()),
+				Code:    400,
+			})
+		}
 		items = res.Items
 		total = res.Total
 	}
@@ -188,7 +218,7 @@ func Proxy(r *ReqContext) interface{} {
 	} else {
 		// page starts with 1,
 		remainCount = total - (paginate.PageSize * paginate.Page)
-		if remainCount < 0 && len(items) == 0 {
+		if remainCount < 0 && len(items) == 0 && paginate.Page != 1 {
 			return errorProxy(r.Writer, v1.Status{
 				Status:  v1.StatusFailure,
 				Message: "out of page",

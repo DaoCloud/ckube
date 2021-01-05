@@ -213,7 +213,7 @@ func TestPaginate_Namespaces(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "__ckube_as__:namespace in (test,test1);", p.Search)
+	assert.Equal(t, "__ckube_as__:namespace in (test,test1)", p.Search)
 	p = Paginate{
 		Search: "test=ok",
 	}
