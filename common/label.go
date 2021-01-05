@@ -5,7 +5,43 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8labels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"sort"
+	"strings"
 )
+
+const eachPartLen = 56
+
+func SplittingValue(value string) []string {
+	res := []string{}
+	if len(value) <= eachPartLen {
+		return []string{value}
+	}
+	for i := 0; ; i += eachPartLen {
+		end := i + eachPartLen
+		if len(value) < end {
+			res = append(res, fmt.Sprintf("%04d.%s", i, value[i:]))
+			break
+		}
+		res = append(res, fmt.Sprintf("%04d.%s", i, value[i:end]))
+	}
+	return res
+}
+
+func MergeValues(values []string) (string, error) {
+	if len(values) == 1 {
+		return values[0], nil
+	}
+	sort.Strings(values)
+	b := strings.Builder{}
+	for _, v := range values {
+		parts := strings.Split(v, ".")
+		if len(parts) != 2 {
+			return "", fmt.Errorf("value format error")
+		}
+		b.WriteString(parts[1])
+	}
+	return b.String(), nil
+}
 
 func ParseToLabelSelector(selector string) (*v1.LabelSelector, error) {
 	reqs, err := k8labels.ParseToRequirements(selector)
