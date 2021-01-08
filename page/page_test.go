@@ -197,6 +197,39 @@ func TestPaginate_Match(t *testing.T) {
 			match: false,
 			err:   fmt.Errorf("unexpected search key: xx"),
 		},
+		{
+			name: "not key contains",
+			index: map[string]string{
+				"name": "test",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "name=!test",
+			},
+			match: false,
+		},
+		{
+			name: "not contains",
+			index: map[string]string{
+				"name": "test",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "!test",
+			},
+			match: false,
+		},
+		{
+			name: "not contains 2",
+			index: map[string]string{
+				"name": "test",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "!xxx",
+			},
+			match: true,
+		},
 	}
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("%d-%s", i, c.name), func(t *testing.T) {

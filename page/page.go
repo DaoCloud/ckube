@@ -56,6 +56,13 @@ func (p *Paginate) SearchParts() []string {
 	return ps
 }
 
+func parseValue(v string) (string, bool) {
+	if strings.HasPrefix(v, "!") {
+		return v[1:], true
+	}
+	return v, false
+}
+
 func Match(m map[string]string, searchParts []string) (bool, error) {
 	if len(searchParts) != 1 {
 		matched := 0
@@ -101,20 +108,32 @@ func Match(m map[string]string, searchParts []string) (bool, error) {
 			value = search[indexOfEqual+1:]
 		}
 	}
+	value, reverse := parseValue(value)
 	if key != "" {
 		if v, ok := m[key]; !ok {
 			return false, fmt.Errorf("unexpected search key: %s", key)
 		} else {
-			return strings.Contains(strconv.Quote(v), value), nil
+			vv := strings.Contains(strconv.Quote(v), value)
+			if reverse {
+				return !vv, nil
+			}
+			return vv, nil
 		}
 	}
 	// fuzzy search
 	for _, v := range m {
-		if strings.Contains(strconv.Quote(v), value) {
-			return true, nil
+		vv := strings.Contains(strconv.Quote(v), value)
+		if reverse {
+			if vv {
+				return false, nil
+			}
+		} else {
+			if vv {
+				return true, nil
+			}
 		}
 	}
-	return false, nil
+	return reverse, nil
 }
 
 func (p *Paginate) SearchSelector() (*v1.LabelSelector, error) {
