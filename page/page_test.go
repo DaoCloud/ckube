@@ -230,6 +230,28 @@ func TestPaginate_Match(t *testing.T) {
 			},
 			match: true,
 		},
+		{
+			name: "simbol",
+			index: map[string]string{
+				"name": "a;b",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "a;;",
+			},
+			match: true,
+		},
+		{
+			name: "simbol and not contains",
+			index: map[string]string{
+				"name": "a;b",
+				"ok":   "qq",
+			},
+			p: Paginate{
+				Search: "a;;;!qq",
+			},
+			match: false,
+		},
 	}
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("%d-%s", i, c.name), func(t *testing.T) {

@@ -46,7 +46,7 @@ func (p *Paginate) SearchParts() []string {
 			}
 		}
 	}
-	parts = append(parts, search[start:])
+	parts = append(parts, trimPart(search[start:]))
 	ps := []string{}
 	for _, p := range parts {
 		if p != "" {
