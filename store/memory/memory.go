@@ -6,6 +6,7 @@ import (
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/log"
 	"gitlab.daocloud.cn/mesh/ckube/store"
+	"gitlab.daocloud.cn/mesh/ckube/utils"
 	"k8s.io/client-go/util/jsonpath"
 	"sort"
 	"strconv"
@@ -243,10 +244,11 @@ func (m *memoryStore) buildResourceWithIndex(gvr store.GroupVersionResource, obj
 	}
 	jp := jsonpath.New("parser")
 	jp.AllowMissingKeys(true)
+	mobj := utils.Obj2JSONMap(obj)
 	for k, v := range m.indexConf[gvr] {
 		w := bytes.NewBuffer([]byte{})
 		jp.Parse(v)
-		err := jp.Execute(w, obj)
+		err := jp.Execute(w, mobj)
 		if err != nil {
 			log.Warnf("exec jsonpath error: %v, %v", obj, err)
 		}
