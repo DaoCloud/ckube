@@ -71,13 +71,13 @@ func Proxy(r *ReqContext) interface{} {
 	labelSelectorStr := ""
 	for k, v := range r.Request.URL.Query() {
 		switch k {
-		case "timeoutSeconds":
-		case "timeout":
 		case "labelSelector":
 			labelSelectorStr = strings.Join(v, ",")
 		default:
 			log.Warnf("got unexpected query key: %s, value: %v, proxyPass to api server", k, v)
 			return proxyPass(r)
+		case "timeoutSeconds":
+		case "timeout":
 		}
 	}
 	var paginate page.Paginate

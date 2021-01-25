@@ -25,3 +25,4 @@ _log
 .DS_Store
 _output
 config/local.json
+examples/local/*
