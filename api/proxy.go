@@ -65,7 +65,7 @@ func Proxy(r *ReqContext) interface{} {
 
 	gvr := getGVRFromReq(r.Request)
 	if !r.Store.IsStoreGVR(gvr) {
-		log.Debug("gvr %v no cached", gvr)
+		log.Debugf("gvr %v no cached", gvr)
 		return proxyPass(r)
 	}
 	labelSelectorStr := ""
@@ -177,7 +177,7 @@ func Proxy(r *ReqContext) interface{} {
 		// manually slice items
 		var l = int64(len(items))
 		var start, end int64 = 0, 0
-		if paginate.PageSize == 0 {
+		if paginate.PageSize == 0 || paginate.Page == 0 {
 			// all resources
 			start = 0
 			end = l
@@ -258,8 +258,9 @@ func proxyPass(r *ReqContext) interface{} {
 		}
 		r.Request.URL.Query().Set("labelSelector", strings.Join(pp, ","))
 	}
-
-	res, err := r.Kube.Discovery().RESTClient().Get().RequestURI(r.Request.URL.String()).DoRaw(context.Background())
+	u := r.Request.URL.String()
+	log.Debugf("proxyPass url: %s", u)
+	res, err := r.Kube.Discovery().RESTClient().Get().RequestURI(u).DoRaw(context.Background())
 	if err != nil {
 		if es, ok := err.(*errors.StatusError); ok {
 			return errorProxy(r.Writer, es.ErrStatus)

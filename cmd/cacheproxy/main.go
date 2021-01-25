@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"gitlab.daocloud.cn/mesh/ckube/common"
+	"gitlab.daocloud.cn/mesh/ckube/log"
 	"gitlab.daocloud.cn/mesh/ckube/server"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"gitlab.daocloud.cn/mesh/ckube/store/memory"
@@ -57,8 +58,15 @@ func GetKubernetesClientWithFile(kubeconfig, context string) (kubernetes.Interfa
 
 func main() {
 	configFile := ""
+	listen := ":3033"
+	debug := false
 	flag.StringVar(&configFile, "c", "config/local.json", "config file path")
+	flag.StringVar(&listen, "a", ":3033", "listen port")
+	flag.BoolVar(&debug, "d", false, "debug mode")
 	flag.Parse()
+	if debug {
+		log.SetDebug()
+	}
 
 	cfg := common.Config{}
 	if bs, err := ioutil.ReadFile(configFile); err != nil {
@@ -95,6 +103,6 @@ func main() {
 	m := memory.NewMemoryStore(indexConf)
 	w := watcher.NewWatcher(*GetK8sConfigConfigWithFile("", ""), client, storeGVRConfig, m)
 	w.Start()
-	ser := server.NewMuxServer(":3033", client, m)
+	ser := server.NewMuxServer(listen, client, m)
 	ser.Run()
 }
