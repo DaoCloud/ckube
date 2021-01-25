@@ -71,7 +71,7 @@ func Proxy(r *ReqContext) interface{} {
 		switch k {
 		case "labelSelector":
 			labelSelectorStr = strings.Join(v, ",")
-		case "timeoutSeconds":
+		case "timeoutSeconds", "timeout":
 		default:
 			return proxyPass(r)
 		}
