@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"gitlab.daocloud.cn/mesh/ckube/common"
+	"gitlab.daocloud.cn/mesh/ckube/log"
 	"gitlab.daocloud.cn/mesh/ckube/page"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -64,6 +65,7 @@ func Proxy(r *ReqContext) interface{} {
 
 	gvr := getGVRFromReq(r.Request)
 	if !r.Store.IsStoreGVR(gvr) {
+		log.Debug("gvr %v no cached", gvr)
 		return proxyPass(r)
 	}
 	labelSelectorStr := ""
@@ -73,6 +75,7 @@ func Proxy(r *ReqContext) interface{} {
 			labelSelectorStr = strings.Join(v, ",")
 		case "timeoutSeconds", "timeout":
 		default:
+			log.Warnf("got unexpected query key: %s, value: %v, proxyPass to api server", k, v)
 			return proxyPass(r)
 		}
 	}
