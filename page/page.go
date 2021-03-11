@@ -158,15 +158,20 @@ func (p *Paginate) SearchSelector() (*v1.LabelSelector, error) {
 	return common.ParseToLabelSelector(search[len(common.AdvancedSearchPrefix):])
 }
 
-func (p *Paginate) SetSearchSelector(selector *v1.LabelSelector) {
+func (p *Paginate) SetSearchSelector(selector *v1.LabelSelector) error {
 	parts := p.SearchParts()
-	pps := []string{common.AdvancedSearchPrefix + v1.FormatLabelSelector(selector)}
+	sstr := v1.FormatLabelSelector(selector)
+	if sstr == "<error>" {
+		return fmt.Errorf("parse selector %v error", selector)
+	}
+	pps := []string{common.AdvancedSearchPrefix + sstr}
 	for _, part := range parts {
 		if !strings.HasPrefix(part, common.AdvancedSearchPrefix) {
 			pps = append(pps, part)
 		}
 	}
 	p.SetSearchWithParts(pps)
+	return nil
 }
 
 func (p *Paginate) SetSearchWithParts(parts []string) {
@@ -199,14 +204,13 @@ func (p *Paginate) Namespaces(nss []string) error {
 		}
 	}
 	s.MatchExpressions = mes
-	p.SetSearchSelector(s)
-	return nil
+	return p.SetSearchSelector(s)
 }
 
-func QueryListOptions(options v1.ListOptions, page Paginate) v1.ListOptions {
+func QueryListOptions(options v1.ListOptions, page Paginate) (v1.ListOptions, error) {
 	bs, _ := json.Marshal(page)
 	if string(bs) == "{}" {
-		return options
+		return options, nil
 	}
 	s := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(bs)
 	//if options.LabelSelector == "" {
@@ -215,7 +219,7 @@ func QueryListOptions(options v1.ListOptions, page Paginate) v1.ListOptions {
 	//}
 	ls, err := common.ParseToLabelSelector(options.LabelSelector)
 	if err != nil {
-		return options
+		return options, err
 	}
 	mes := []v1.LabelSelectorRequirement{{
 		Key:      common.PaginateKey,
@@ -228,8 +232,12 @@ func QueryListOptions(options v1.ListOptions, page Paginate) v1.ListOptions {
 		}
 	}
 	ls.MatchExpressions = mes
-	options.LabelSelector = v1.FormatLabelSelector(ls)
-	return options
+	sstr := v1.FormatLabelSelector(ls)
+	if sstr == "<error>" {
+		return options, fmt.Errorf("parse selector %v error", ls)
+	}
+	options.LabelSelector = sstr
+	return options, nil
 }
 
 func MakeupResPaginate(l v1.ListInterface, page Paginate) Paginate {
