@@ -9,10 +9,11 @@ import (
 
 func TestQueryListOptions(t *testing.T) {
 	cases := []struct {
-		name     string
-		inOption v1.ListOptions
-		inPage   Paginate
-		out      v1.ListOptions
+		name       string
+		inOption   v1.ListOptions
+		inPage     Paginate
+		out        v1.ListOptions
+		wannaError bool
 	}{
 		{
 			name: "empty Paginate",
@@ -75,8 +76,13 @@ func TestQueryListOptions(t *testing.T) {
 	}
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("%d---%s", i, c.name), func(t *testing.T) {
-			out := QueryListOptions(c.inOption, c.inPage)
+			out, err := QueryListOptions(c.inOption, c.inPage)
 			assert.Equal(t, c.out, out)
+			if c.wannaError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
@@ -277,4 +283,8 @@ func TestPaginate_Namespaces(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, "__ckube_as__:namespace in (test,test1);test=ok", p.Search)
+	err = p.Namespaces([]string{})
+	if err == nil {
+		t.Fatal("must be error")
+	}
 }

@@ -17,9 +17,10 @@ func main() {
 		// full search
 		Search: `name="default"`,
 	}
+	op, _ := page.QueryListOptions(v1.ListOptions{}, p)
 	podList, err := client.CoreV1().Namespaces().List(
 		context.Background(),
-		page.QueryListOptions(v1.ListOptions{}, p),
+		op,
 	)
 	if err != nil {
 		panic(err)
@@ -31,9 +32,10 @@ func main() {
 		PageSize: 5,
 		Search:   `e`,
 	}
+	op, _ = page.QueryListOptions(v1.ListOptions{}, p)
 	podList, err = client.CoreV1().Namespaces().List(
 		context.Background(),
-		page.QueryListOptions(v1.ListOptions{}, p),
+		op,
 	)
 	if err != nil {
 		panic(err)
