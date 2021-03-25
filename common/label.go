@@ -18,7 +18,7 @@ func SplittingValue(value string) []string {
 	}
 	for i := 0; ; i += eachPartLen {
 		end := i + eachPartLen
-		if len(value) < end {
+		if len(value) <= end {
 			res = append(res, fmt.Sprintf("%04d.%s", i, value[i:]))
 			break
 		}
