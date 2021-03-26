@@ -35,6 +35,7 @@ steps:
     when:
       branch:
         - develop
+        - release/*
 
   - name: update fix and feature branch
     image: curlimages/curl
