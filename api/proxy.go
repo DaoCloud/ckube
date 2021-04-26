@@ -5,6 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"reflect"
+	"strings"
+
 	"github.com/gorilla/mux"
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/log"
@@ -13,9 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8labels "k8s.io/apimachinery/pkg/labels"
-	"net/http"
-	"reflect"
-	"strings"
 )
 
 func getGVRFromReq(req *http.Request) store.GroupVersionResource {
@@ -59,14 +60,35 @@ func errorProxy(w http.ResponseWriter, err v1.Status) interface{} {
 	return err
 }
 
+func ProxySingleResources(r *ReqContext, gvr store.GroupVersionResource, namespace, resource string) interface{} {
+	if _, ok := r.Request.URL.Query()["resourceVersion"]; ok {
+		return proxyPass(r)
+	}
+	res := r.Store.Get(gvr, namespace, resource)
+	if res == nil {
+		return errorProxy(r.Writer, v1.Status{
+			Status:  v1.StatusFailure,
+			Message: fmt.Sprintf("resource %v: %s/%s not found", gvr, namespace, resource),
+			Reason:  v1.StatusReasonNotFound,
+			Details: nil,
+			Code:    404,
+		})
+	}
+	return res
+}
+
 func Proxy(r *ReqContext) interface{} {
 	//version := mux.Vars(r.Request)["version"]
 	namespace := mux.Vars(r.Request)["namespace"]
+	resourceName := mux.Vars(r.Request)["resource"]
 
 	gvr := getGVRFromReq(r.Request)
 	if !r.Store.IsStoreGVR(gvr) {
 		log.Debugf("gvr %v no cached", gvr)
 		return proxyPass(r)
+	}
+	if resourceName != "" {
+		return ProxySingleResources(r, gvr, namespace, resourceName)
 	}
 	labelSelectorStr := ""
 	for k, v := range r.Request.URL.Query() {

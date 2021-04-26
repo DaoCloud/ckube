@@ -42,5 +42,27 @@ var (
 			authRequired:  true,
 			successStatus: 200,
 		},
+
+		// single resources
+		"GET:/apis/{group}/{version}/namespaces/{namespace}/{resourceType}/{resource}": {
+			handler:       api.Proxy,
+			authRequired:  true,
+			successStatus: 200,
+		},
+		"GET:/apis/{group}/{version}/{resourceType}/{resource}": {
+			handler:       api.Proxy,
+			authRequired:  true,
+			successStatus: 200,
+		},
+		"GET:/api/{version}/{resourceType}/{resource}": {
+			handler:       api.Proxy,
+			authRequired:  true,
+			successStatus: 200,
+		},
+		"GET:/api/{version}/namespaces/{namespace}/{resourceType}/{resource}": {
+			handler:       api.Proxy,
+			authRequired:  true,
+			successStatus: 200,
+		},
 	}
 )

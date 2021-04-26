@@ -3,15 +3,16 @@ package memory
 import (
 	"bytes"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/log"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"gitlab.daocloud.cn/mesh/ckube/utils"
 	"k8s.io/client-go/util/jsonpath"
-	"sort"
-	"strconv"
-	"strings"
-	"sync"
 )
 
 type resourceObj struct {
@@ -188,6 +189,19 @@ func sortObjs(objs []store.Object, s string) ([]store.Object, error) {
 		return true
 	})
 	return objs, sortErr
+}
+
+func (m *memoryStore) Get(gvr store.GroupVersionResource, namespace, name string) interface{} {
+	if m.resourceMap[gvr] != nil {
+		if nsObjs, ok := m.resourceMap[gvr][namespace]; ok {
+			nsObjs.lock.RLock()
+			defer nsObjs.lock.RUnlock()
+			if sobj, ok := nsObjs.objMap[name]; ok {
+				return sobj.Obj
+			}
+		}
+	}
+	return nil
 }
 
 func (m *memoryStore) Query(gvr store.GroupVersionResource, query store.Query) store.QueryResult {
