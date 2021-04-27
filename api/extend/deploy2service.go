@@ -1,13 +1,14 @@
 package extend
 
 import (
+	"strings"
+
 	"github.com/gorilla/mux"
+	"gitlab.daocloud.cn/dsm-public/common/page"
 	"gitlab.daocloud.cn/mesh/ckube/api"
-	"gitlab.daocloud.cn/mesh/ckube/page"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"gitlab.daocloud.cn/mesh/ckube/utils"
 	v1 "k8s.io/api/core/v1"
-	"strings"
 )
 
 func Deploy2Service(r *api.ReqContext) interface{} {
