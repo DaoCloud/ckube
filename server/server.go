@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gitlab.daocloud.cn/mesh/ckube/api"
-	"gitlab.daocloud.cn/mesh/ckube/log"
+	"gitlab.daocloud.cn/dsm-public/common/log"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"k8s.io/client-go/kubernetes"
 	"net/http"

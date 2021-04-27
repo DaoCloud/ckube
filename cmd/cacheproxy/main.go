@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"gitlab.daocloud.cn/mesh/ckube/common"
-	"gitlab.daocloud.cn/mesh/ckube/log"
+	"gitlab.daocloud.cn/dsm-public/common/log"
 	"gitlab.daocloud.cn/mesh/ckube/server"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"gitlab.daocloud.cn/mesh/ckube/store/memory"

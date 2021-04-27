@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"gitlab.daocloud.cn/mesh/ckube/common"
-	"gitlab.daocloud.cn/mesh/ckube/log"
+	"gitlab.daocloud.cn/dsm-public/common/constants"
+	"gitlab.daocloud.cn/dsm-public/common/log"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"gitlab.daocloud.cn/mesh/ckube/utils"
 	"k8s.io/client-go/util/jsonpath"
@@ -112,7 +112,7 @@ func sortObjs(objs []store.Object, s string) ([]store.Object, error) {
 		}
 		st := innerSort{
 			reverse: false,
-			typ:     common.KeyTypeStr,
+			typ:     constants.KeyTypeStr,
 		}
 		if strings.Contains(s, " ") {
 			parts := strings.Split(s, " ")
@@ -121,9 +121,9 @@ func sortObjs(objs []store.Object, s string) ([]store.Object, error) {
 			}
 			if len(parts) == 2 {
 				switch parts[1] {
-				case common.SortDesc:
+				case constants.SortDesc:
 					st.reverse = true
-				case common.SortASC:
+				case constants.SortASC:
 					st.reverse = false
 				default:
 					return objs, fmt.Errorf("error sort format `%s`", parts[1])
@@ -132,16 +132,16 @@ func sortObjs(objs []store.Object, s string) ([]store.Object, error) {
 			// override s
 			s = parts[0]
 		}
-		if strings.Contains(s, common.KeyTypeSep) {
-			parts := strings.Split(s, common.KeyTypeSep)
+		if strings.Contains(s, constants.KeyTypeSep) {
+			parts := strings.Split(s, constants.KeyTypeSep)
 			if len(parts) != 2 {
 				return objs, fmt.Errorf("error type format")
 			}
 			switch parts[1] {
-			case common.KeyTypeInt:
-				st.typ = common.KeyTypeInt
-			case common.KeyTypeStr:
-				st.typ = common.KeyTypeStr
+			case constants.KeyTypeInt:
+				st.typ = constants.KeyTypeInt
+			case constants.KeyTypeStr:
+				st.typ = constants.KeyTypeStr
 			default:
 				return objs, fmt.Errorf("unsupported typ: %s", parts[1])
 			}
@@ -160,7 +160,7 @@ func sortObjs(objs []store.Object, s string) ([]store.Object, error) {
 			equals := false
 			vis := objs[i].Index[s.key]
 			vjs := objs[j].Index[s.key]
-			if s.typ == common.KeyTypeInt {
+			if s.typ == constants.KeyTypeInt {
 				keyErr := fmt.Errorf("value of `%s` can not convert to number", s.key)
 				vi, err := strconv.ParseFloat(vis, 64)
 				if err != nil {

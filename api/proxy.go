@@ -10,8 +10,10 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"gitlab.daocloud.cn/dsm-public/common/constants"
+	"gitlab.daocloud.cn/dsm-public/common/kube"
 	"gitlab.daocloud.cn/mesh/ckube/common"
-	"gitlab.daocloud.cn/mesh/ckube/log"
+	"gitlab.daocloud.cn/dsm-public/common/log"
 	"gitlab.daocloud.cn/mesh/ckube/page"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -106,7 +108,7 @@ func Proxy(r *ReqContext) interface{} {
 	var labels *v1.LabelSelector
 	if labelSelectorStr != "" {
 		var err error
-		labels, err = common.ParseToLabelSelector(labelSelectorStr)
+		labels, err = kube.ParseToLabelSelector(labelSelectorStr)
 		if err != nil {
 			return errorProxy(r.Writer, v1.Status{
 				Status:  v1.StatusFailure,
@@ -117,18 +119,18 @@ func Proxy(r *ReqContext) interface{} {
 			})
 		}
 		paginateStr := ""
-		if ps, ok := labels.MatchLabels[common.PaginateKey]; ok {
+		if ps, ok := labels.MatchLabels[constants.PaginateKey]; ok {
 			paginateStr = ps
-			delete(labels.MatchLabels, common.PaginateKey)
+			delete(labels.MatchLabels, constants.PaginateKey)
 		} else {
 			mes := []v1.LabelSelectorRequirement{}
 			// Why we use MatchExpressions?
 			// to adapt dsm.daocloud.io/query=xxxx send to apiserver, which makes no results.
 			// if dsm.daocloud.io/query != xxx or dsm.daocloud.io/query not in (xxx), results exist even if it was sent to apiserver.
 			for _, m := range labels.MatchExpressions {
-				if m.Key == common.PaginateKey {
+				if m.Key == constants.PaginateKey {
 					if len(m.Values) > 0 {
-						paginateStr, err = common.MergeValues(m.Values)
+						paginateStr, err = kube.MergeValues(m.Values)
 						if err != nil {
 							return errorProxy(r.Writer, v1.Status{
 								Status:  v1.StatusFailure,
@@ -157,7 +159,7 @@ func Proxy(r *ReqContext) interface{} {
 				})
 			}
 			json.Unmarshal(rr, &paginate)
-			delete(labels.MatchLabels, common.PaginateKey)
+			delete(labels.MatchLabels, constants.PaginateKey)
 		}
 	}
 	items := make([]interface{}, 0)
@@ -273,7 +275,7 @@ func proxyPass(r *ReqContext) interface{} {
 		parts := strings.Split(ls, ",")
 		pp := []string{}
 		for _, part := range parts {
-			if strings.HasPrefix(part, common.PaginateKey) {
+			if strings.HasPrefix(part, constants.PaginateKey) {
 				continue
 			}
 			pp = append(pp, part)

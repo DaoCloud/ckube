@@ -4,8 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	"gitlab.daocloud.cn/dsm-public/common/log"
 	"gitlab.daocloud.cn/mesh/ckube/common"
-	"gitlab.daocloud.cn/mesh/ckube/log"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,9 +18,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"strings"
-	"sync"
-	"time"
 )
 
 type watcher struct {
