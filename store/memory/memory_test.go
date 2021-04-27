@@ -3,7 +3,7 @@ package memory
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"gitlab.daocloud.cn/mesh/ckube/page"
+	"gitlab.daocloud.cn/dsm-public/common/page"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
