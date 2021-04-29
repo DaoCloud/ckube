@@ -61,7 +61,7 @@ func main() {
 	configFile := ""
 	listen := ":3033"
 	debug := false
-	flag.StringVar(&configFile, "c", "config/example.json", "config file path")
+	flag.StringVar(&configFile, "c", "config/local.json", "config file path")
 	flag.StringVar(&listen, "a", ":3033", "listen port")
 	flag.BoolVar(&debug, "d", false, "debug mode")
 	flag.Parse()
