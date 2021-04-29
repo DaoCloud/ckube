@@ -3,6 +3,7 @@ package server
 import (
 	"gitlab.daocloud.cn/mesh/ckube/api"
 	"gitlab.daocloud.cn/mesh/ckube/api/extend"
+	"gitlab.daocloud.cn/mesh/ckube/utils/prommonitor"
 )
 
 type HandleFunc func(r *api.ReqContext) interface{}
@@ -17,6 +18,10 @@ type route struct {
 
 var (
 	handleMap = map[string]route{
+		// metrics url
+		"GET:/metrics":{
+			handler: prommonitor.PromHandler,
+		},
 		"GET:/custom/v1/namespaces/{namespace}/deployments/{deployment}/services": {
 			handler:       extend.Deploy2Service,
 			authRequired:  true,

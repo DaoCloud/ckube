@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/dsm-public/common/log"
+	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/server"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"gitlab.daocloud.cn/mesh/ckube/store/memory"
+	"gitlab.daocloud.cn/mesh/ckube/utils/prommonitor"
 	"gitlab.daocloud.cn/mesh/ckube/watcher"
 	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
@@ -60,7 +61,7 @@ func main() {
 	configFile := ""
 	listen := ":3033"
 	debug := false
-	flag.StringVar(&configFile, "c", "config/local.json", "config file path")
+	flag.StringVar(&configFile, "c", "config/example.json", "config file path")
 	flag.StringVar(&listen, "a", ":3033", "listen port")
 	flag.BoolVar(&debug, "d", false, "debug mode")
 	flag.Parse()
@@ -81,11 +82,14 @@ func main() {
 	}
 	common.InitConfig(&cfg)
 	client, err := GetKubernetesClientWithFile("", "")
-
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "init k8s client error: %v", err)
 		os.Exit(2)
 	}
+
+	// 记录组件运行状态
+	prommonitor.Up.WithLabelValues(prommonitor.CkubeComponent).Set(1)
+
 	indexConf := map[store.GroupVersionResource]map[string]string{}
 	storeGVRConfig := []store.GroupVersionResource{}
 	for _, proxy := range cfg.Proxies {
