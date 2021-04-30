@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"gitlab.daocloud.cn/mesh/ckube/api"
-	"gitlab.daocloud.cn/dsm-public/common/log"
-	"gitlab.daocloud.cn/mesh/ckube/store"
-	"k8s.io/client-go/kubernetes"
 	"net/http"
 	"runtime/debug"
 	"strings"
 	"time"
+
+	"gitlab.daocloud.cn/dsm-public/common/log"
+	"gitlab.daocloud.cn/mesh/ckube/api"
+	"gitlab.daocloud.cn/mesh/ckube/store"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -150,6 +151,9 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]rout
 					Request: r,
 					Writer:  writer,
 				})
+				if res == nil {
+					return
+				}
 				var status int
 				switch res.(type) {
 				case error:
