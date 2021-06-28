@@ -18,6 +18,14 @@ type route struct {
 
 var (
 	handleMap = map[string]route{
+		// healthy
+		"GET:/healthy":{
+			handler: func(r *api.ReqContext) interface{} {
+				r.Writer.Write([]byte("1"))
+				r.Writer.WriteHeader(200)
+				return nil
+			},
+		},
 		// metrics url
 		"GET:/metrics":{
 			handler: prommonitor.PromHandler,
