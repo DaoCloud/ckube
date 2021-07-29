@@ -15,28 +15,25 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 )
 
 type watcher struct {
-	config    rest.Config
-	client    kubernetes.Interface
-	resources []store.GroupVersionResource
-	store     store.Store
-	stop      chan struct{}
-	lock      sync.Mutex
+	clusterConfigs map[string]rest.Config
+	resources      []store.GroupVersionResource
+	store          store.Store
+	stop           chan struct{}
+	lock           sync.Mutex
 	Watcher
 }
 
-func NewWatcher(config rest.Config, client kubernetes.Interface, resources []store.GroupVersionResource, store store.Store) Watcher {
+func NewWatcher(clusterConfigs map[string]rest.Config, resources []store.GroupVersionResource, store store.Store) Watcher {
 	return &watcher{
-		config:    config,
-		client:    client,
-		resources: resources,
-		store:     store,
-		stop:      make(chan struct{}),
+		clusterConfigs: clusterConfigs,
+		resources:      resources,
+		store:          store,
+		stop:           make(chan struct{}),
 	}
 }
 
@@ -113,72 +110,77 @@ func (o ObjType) DeepCopyObject() runtime.Object {
 	}
 }
 
+func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
+	gvk := schema.GroupVersionKind{
+		Group:   r.Group,
+		Version: r.Version,
+		Kind:    strings.TrimRight(common.GetGVRKind(r.Group, r.Version, r.Resource), "List"),
+	}
+	gv := schema.GroupVersion{
+		Group:   r.Group,
+		Version: r.Version,
+	}
+	w.lock.Lock()
+	if _, ok := scheme.Scheme.KnownTypes(gv)[gvk.Kind]; !ok {
+		scheme.Scheme.AddKnownTypeWithName(gvk, &ObjType{})
+	}
+	w.lock.Unlock()
+	config := w.clusterConfigs[cluster]
+
+	config.GroupVersion = &schema.GroupVersion{
+		Group:   r.Group,
+		Version: r.Version,
+	}
+	scheme.Codecs.UniversalDeserializer()
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	rt, _ := rest.RESTClientFor(&config)
+	for {
+		ctx, calcel := context.WithTimeout(context.Background(), time.Hour)
+		url := ""
+		if r.Group == "" {
+			url = fmt.Sprintf("/api/%s/%s?watch=true", r.Version, r.Resource)
+		} else {
+			url = fmt.Sprintf("/apis/%s/%s/%s?watch=true", r.Group, r.Version, r.Resource)
+		}
+		ww, err := rt.Get().RequestURI(url).Timeout(time.Hour).Watch(ctx)
+		if err != nil {
+			log.Errorf("create watcher error: %v", err)
+			time.Sleep(time.Second * 3)
+		} else {
+		resultChan:
+			for {
+				select {
+				case rr, open := <-ww.ResultChan():
+					if open {
+						switch rr.Type {
+						case watch.Added:
+							w.store.OnResourceAdded(r, cluster, rr.Object)
+						case watch.Modified:
+							w.store.OnResourceModified(r, cluster, rr.Object)
+						case watch.Deleted:
+							w.store.OnResourceDeleted(r, cluster, rr.Object)
+						case watch.Error:
+							log.Warnf("watch stream(%v) error: %v", r, rr.Object)
+						}
+					} else {
+						w.store.Clean(r, cluster)
+						log.Warnf("watch stream(%v) closed", r)
+						break resultChan
+					}
+				case <-w.stop:
+					break resultChan
+				}
+			}
+		}
+		calcel()
+	}
+}
+
 func (w *watcher) Start() error {
 	for _, r := range w.resources {
-		go func(r store.GroupVersionResource) {
-			gvk := schema.GroupVersionKind{
-				Group:   r.Group,
-				Version: r.Version,
-				Kind:    strings.TrimRight(common.GetGVRKind(r.Group, r.Version, r.Resource), "List"),
-			}
-			gv := schema.GroupVersion{
-				Group:   r.Group,
-				Version: r.Version,
-			}
-			w.lock.Lock()
-			if _, ok := scheme.Scheme.KnownTypes(gv)[gvk.Kind]; !ok {
-				scheme.Scheme.AddKnownTypeWithName(gvk, &ObjType{})
-			}
-			w.lock.Unlock()
-
-			w.config.GroupVersion = &schema.GroupVersion{
-				Group:   r.Group,
-				Version: r.Version,
-			}
-			scheme.Codecs.UniversalDeserializer()
-			w.config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
-			rt, _ := rest.RESTClientFor(&w.config)
-			for {
-				ctx, calcel := context.WithTimeout(context.Background(), time.Hour)
-				url := ""
-				if r.Group == "" {
-					url = fmt.Sprintf("/api/%s/%s?watch=true", r.Version, r.Resource)
-				} else {
-					url = fmt.Sprintf("/apis/%s/%s/%s?watch=true", r.Group, r.Version, r.Resource)
-				}
-				ww, err := rt.Get().RequestURI(url).Timeout(time.Hour).Watch(ctx)
-				if err != nil {
-					log.Errorf("create watcher error: %v", err)
-					time.Sleep(time.Second * 3)
-				} else {
-				resultChan:
-					for {
-						select {
-						case rr, open := <-ww.ResultChan():
-							if open {
-								switch rr.Type {
-								case watch.Added:
-									w.store.OnResourceAdded(r, rr.Object)
-								case watch.Modified:
-									w.store.OnResourceModified(r, rr.Object)
-								case watch.Deleted:
-									w.store.OnResourceDeleted(r, rr.Object)
-								case watch.Error:
-									log.Warnf("watch stream(%v) error: %v", r, rr.Object)
-								}
-							} else {
-								w.store.Clean(r)
-								log.Warnf("watch stream(%v) closed", r)
-								break resultChan
-							}
-						case <-w.stop:
-							break resultChan
-						}
-					}
-				}
-				calcel()
-			}
-		}(r)
+		for c := range w.clusterConfigs {
+			go w.watchResources(r, c)
+		}
 	}
 	return nil
 }

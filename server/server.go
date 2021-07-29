@@ -25,12 +25,12 @@ type Server interface {
 }
 
 type muxServer struct {
-	LogLevel   string
-	ListenAddr string
-	router     *mux.Router
-	server     *http.Server
-	store      store.Store
-	kube       kubernetes.Interface
+	LogLevel       string
+	ListenAddr     string
+	router         *mux.Router
+	server         *http.Server
+	store          store.Store
+	clusterClients map[string]kubernetes.Interface
 }
 
 type statusWriter struct {
@@ -72,12 +72,12 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func NewMuxServer(listenAddr string, kube kubernetes.Interface, s store.Store) Server {
+func NewMuxServer(listenAddr string, clusterClients map[string]kubernetes.Interface, s store.Store) Server {
 	ser := muxServer{
-		kube:       kube,
-		store:      s,
-		ListenAddr: listenAddr,
-		router:     mux.NewRouter(),
+		clusterClients: clusterClients,
+		store:          s,
+		ListenAddr:     listenAddr,
+		router:         mux.NewRouter(),
 	}
 	ser.registerRoutes(ser.router, handleMap)
 	ser.router.Use(loggingMiddleware)
@@ -146,10 +146,10 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]rout
 				}()
 				var res interface{}
 				res = route.handler(&api.ReqContext{
-					Kube:    m.kube,
-					Store:   m.store,
-					Request: r,
-					Writer:  writer,
+					ClusterClients: m.clusterClients,
+					Store:          m.store,
+					Request:        r,
+					Writer:         writer,
 				})
 				if res == nil {
 					return

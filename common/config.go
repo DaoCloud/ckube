@@ -8,14 +8,24 @@ type Proxy struct {
 	Index    map[string]string `json:"index"`
 }
 
+type Cluster struct {
+	Context string `json:"context"`
+}
+
 type Config struct {
-	Proxies []Proxy `json:"proxies"`
+	Proxies        []Proxy            `json:"proxies"`
+	Clusters       map[string]Cluster `json:"clusters"`
+	DefaultCluster string             `json:"default_cluster"`
 }
 
 var cfg *Config
 
 func InitConfig(c *Config) {
 	cfg = c
+}
+
+func GetConfig() Config {
+	return *cfg
 }
 
 func GetGVRKind(g, v, r string) string {

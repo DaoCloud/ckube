@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	"gitlab.daocloud.cn/dsm-public/common/log"
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/server"
@@ -11,11 +14,9 @@ import (
 	"gitlab.daocloud.cn/mesh/ckube/store/memory"
 	"gitlab.daocloud.cn/mesh/ckube/utils/prommonitor"
 	"gitlab.daocloud.cn/mesh/ckube/watcher"
-	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
 )
 
 func GetK8sConfigConfigWithFile(kubeconfig, context string) *rest.Config {
@@ -80,12 +81,29 @@ func main() {
 			os.Exit(3)
 		}
 	}
-	common.InitConfig(&cfg)
-	client, err := GetKubernetesClientWithFile("", "")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "init k8s client error: %v", err)
-		os.Exit(2)
+	clusterConfigs := map[string]rest.Config{}
+	clusterClients := map[string]kubernetes.Interface{}
+	if len(cfg.Clusters) == 0 {
+		cfg.DefaultCluster = "default"
+		cfg.Clusters = map[string]common.Cluster{
+			"default": {Context: ""},
+		}
 	}
+	for name, ctx := range cfg.Clusters {
+		c := GetK8sConfigConfigWithFile("", ctx.Context)
+		if c == nil {
+			fmt.Fprintf(os.Stderr, "init k8s config error")
+			os.Exit(2)
+		}
+		clusterConfigs[name] = *c
+		client, err := GetKubernetesClientWithFile("", ctx.Context)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "init k8s client error: %v", err)
+			os.Exit(2)
+		}
+		clusterClients[name] = client
+	}
+	common.InitConfig(&cfg)
 
 	// 记录组件运行状态
 	prommonitor.Up.WithLabelValues(prommonitor.CkubeComponent).Set(1)
@@ -105,8 +123,8 @@ func main() {
 		})
 	}
 	m := memory.NewMemoryStore(indexConf)
-	w := watcher.NewWatcher(*GetK8sConfigConfigWithFile("", ""), client, storeGVRConfig, m)
+	w := watcher.NewWatcher(clusterConfigs, storeGVRConfig, m)
 	w.Start()
-	ser := server.NewMuxServer(listen, client, m)
+	ser := server.NewMuxServer(listen, clusterClients, m)
 	ser.Run()
 }

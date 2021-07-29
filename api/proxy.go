@@ -63,14 +63,18 @@ func errorProxy(w http.ResponseWriter, err v1.Status) interface{} {
 }
 
 func ProxySingleResources(r *ReqContext, gvr store.GroupVersionResource, namespace, resource string) interface{} {
-	if _, ok := r.Request.URL.Query()["resourceVersion"]; ok {
-		return proxyPass(r)
+	cluster := ""
+	clusterPrefix := "dsm-cluster-"
+	if rv, ok := r.Request.URL.Query()["resourceVersion"]; ok && len(rv) == 1 && strings.HasPrefix(rv[0], clusterPrefix) {
+		cluster = rv[0][len(clusterPrefix):]
+	} else if ok {
+		return proxyPass(r, cluster)
 	}
-	res := r.Store.Get(gvr, namespace, resource)
+	res := r.Store.Get(gvr, cluster, namespace, resource) // todo
 	if res == nil {
 		return errorProxy(r.Writer, v1.Status{
 			Status:  v1.StatusFailure,
-			Message: fmt.Sprintf("resource %v: %s/%s not found", gvr, namespace, resource),
+			Message: fmt.Sprintf("resource %v: %s/%s/%s not found", gvr, cluster, namespace, resource),
 			Reason:  v1.StatusReasonNotFound,
 			Details: nil,
 			Code:    404,
@@ -79,44 +83,14 @@ func ProxySingleResources(r *ReqContext, gvr store.GroupVersionResource, namespa
 	return res
 }
 
-func Proxy(r *ReqContext) interface{} {
-	//version := mux.Vars(r.Request)["version"]
-	namespace := mux.Vars(r.Request)["namespace"]
-	resourceName := mux.Vars(r.Request)["resource"]
-
-	gvr := getGVRFromReq(r.Request)
-	if !r.Store.IsStoreGVR(gvr) {
-		log.Debugf("gvr %v no cached", gvr)
-		return proxyPass(r)
-	}
-	if resourceName != "" {
-		return ProxySingleResources(r, gvr, namespace, resourceName)
-	}
-	labelSelectorStr := ""
-	for k, v := range r.Request.URL.Query() {
-		switch k {
-		case "labelSelector":
-			labelSelectorStr = strings.Join(v, ",")
-		default:
-			log.Warnf("got unexpected query key: %s, value: %v, proxyPass to api server", k, v)
-			return proxyPass(r)
-		case "timeoutSeconds":
-		case "timeout":
-		}
-	}
-	var paginate page.Paginate
+func parsePaginateAndLabels(labelSelectorStr string) (*page.Paginate, *v1.LabelSelector, error) {
 	var labels *v1.LabelSelector
+	var paginate page.Paginate
 	if labelSelectorStr != "" {
 		var err error
 		labels, err = kube.ParseToLabelSelector(labelSelectorStr)
 		if err != nil {
-			return errorProxy(r.Writer, v1.Status{
-				Status:  v1.StatusFailure,
-				Message: "parse page selector error",
-				Reason:  v1.StatusReason(err.Error()),
-				Details: nil,
-				Code:    500,
-			})
+			return nil, nil, err
 		}
 		paginateStr := ""
 		if ps, ok := labels.MatchLabels[constants.PaginateKey]; ok {
@@ -132,13 +106,7 @@ func Proxy(r *ReqContext) interface{} {
 					if len(m.Values) > 0 {
 						paginateStr, err = kube.MergeValues(m.Values)
 						if err != nil {
-							return errorProxy(r.Writer, v1.Status{
-								Status:  v1.StatusFailure,
-								Message: "parse page selector error",
-								Reason:  v1.StatusReason(err.Error()),
-								Details: nil,
-								Code:    500,
-							})
+							return nil, labels, err
 						}
 					}
 				} else {
@@ -150,18 +118,63 @@ func Proxy(r *ReqContext) interface{} {
 		if paginateStr != "" {
 			rr, err := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(paginateStr)
 			if err != nil {
-				return errorProxy(r.Writer, v1.Status{
-					Status:  v1.StatusFailure,
-					Message: "parse query error",
-					Reason:  v1.StatusReason(err.Error()),
-					Details: nil,
-					Code:    400,
-				})
+				return nil, labels, err
 			}
 			json.Unmarshal(rr, &paginate)
 			delete(labels.MatchLabels, constants.PaginateKey)
 		}
 	}
+	return &paginate, labels, nil
+}
+
+func Proxy(r *ReqContext) interface{} {
+	//version := mux.Vars(r.Request)["version"]
+	namespace := mux.Vars(r.Request)["namespace"]
+	resourceName := mux.Vars(r.Request)["resource"]
+
+	gvr := getGVRFromReq(r.Request)
+	if resourceName != "" {
+		return ProxySingleResources(r, gvr, namespace, resourceName)
+	}
+	labelSelectorStr := ""
+	var paginate *page.Paginate
+	var labels *v1.LabelSelector
+	var err error
+	for k, v := range r.Request.URL.Query() {
+		switch k {
+		case "labelSelector":
+			labelSelectorStr = strings.Join(v, ",")
+			paginate, labels, err = parsePaginateAndLabels(labelSelectorStr)
+			if err != nil {
+				return proxyPass(r, common.GetConfig().DefaultCluster)
+			}
+		default:
+			log.Warnf("got unexpected query key: %s, value: %v, proxyPass to api server", k, v)
+			return proxyPass(r, common.GetConfig().DefaultCluster)
+		case "timeoutSeconds":
+		case "timeout":
+		}
+	}
+	if paginate == nil {
+		paginate = &page.Paginate{}
+	}
+	if !r.Store.IsStoreGVR(gvr) {
+		log.Debugf("gvr %v no cached", gvr)
+		if cs := paginate.GetClusters(); len(cs) == 1 {
+			return proxyPass(r, cs[0])
+		}
+		return proxyPass(r, common.GetConfig().DefaultCluster)
+	}
+	// default only get default cluster's resources,
+	// If you want to get all clusters' resources,
+	// please call paginate.Clusters() before fetch resources
+	if cs := paginate.GetClusters(); len(cs) == 0 {
+		err = paginate.Clusters([]string{common.GetConfig().DefaultCluster})
+		if err != nil {
+			log.Errorf("set cluster error: %v", err)
+		}
+	}
+
 	items := make([]interface{}, 0)
 	var total int64 = 0
 	if labels != nil && (len(labels.MatchLabels) != 0 || len(labels.MatchExpressions) != 0) {
@@ -220,7 +233,7 @@ func Proxy(r *ReqContext) interface{} {
 	} else {
 		res := r.Store.Query(gvr, store.Query{
 			Namespace: namespace,
-			Paginate:  paginate,
+			Paginate:  *paginate,
 		})
 		if res.Error != nil {
 			return errorProxy(r.Writer, v1.Status{
@@ -268,7 +281,7 @@ func Proxy(r *ReqContext) interface{} {
 	}
 }
 
-func proxyPass(r *ReqContext) interface{} {
+func proxyPass(r *ReqContext, cluster string) interface{} {
 
 	ls := r.Request.URL.Query().Get("labelSelector")
 	if ls != "" {
@@ -284,7 +297,7 @@ func proxyPass(r *ReqContext) interface{} {
 	}
 	u := r.Request.URL.String()
 	log.Debugf("proxyPass url: %s", u)
-	res, err := r.Kube.Discovery().RESTClient().Get().RequestURI(u).DoRaw(context.Background())
+	res, err := r.ClusterClients[cluster].Discovery().RESTClient().Get().RequestURI(u).DoRaw(context.Background())
 	if err != nil {
 		if es, ok := err.(*errors.StatusError); ok {
 			return errorProxy(r.Writer, es.ErrStatus)
