@@ -12,6 +12,7 @@ import (
 	"gitlab.daocloud.cn/dsm-public/common/log"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"gitlab.daocloud.cn/mesh/ckube/utils"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/jsonpath"
 )
 
@@ -300,23 +301,13 @@ func (m *memoryStore) Query(gvr store.GroupVersionResource, query store.Query) s
 }
 
 func (m *memoryStore) buildResourceWithIndex(gvr store.GroupVersionResource, cluster string, obj interface{}) (string, string, store.Object) {
+	s := store.Object{
+		Index: map[string]string{},
+		Obj:   obj,
+	}
 	jp := jsonpath.New("parser")
 	jp.AllowMissingKeys(true)
 	mobj := utils.Obj2JSONMap(obj)
-	if m, ok := mobj["metadata"].(map[string]interface{}); ok {
-		if annoInterface, ok := m["annotations"]; ok {
-			anno := annoInterface.(map[string]interface{})
-			anno[constants.DSMClusterAnno] = cluster
-		} else {
-			m["annotations"] = map[string]string{
-				constants.DSMClusterAnno: cluster,
-			}
-		}
-	}
-	s := store.Object{
-		Index: map[string]string{},
-		Obj:   mobj,
-	}
 	for k, v := range m.indexConf[gvr] {
 		w := bytes.NewBuffer([]byte{})
 		jp.Parse(v)
@@ -325,6 +316,18 @@ func (m *memoryStore) buildResourceWithIndex(gvr store.GroupVersionResource, clu
 			log.Warnf("exec jsonpath error: %v, %v", obj, err)
 		}
 		s.Index[k] = w.String()
+	}
+	if oo, ok := obj.(v1.Object); ok {
+		if len(oo.GetAnnotations()) == 0 {
+			oo.SetAnnotations(map[string]string{
+				constants.DSMClusterAnno: cluster,
+			})
+		} else {
+			anno := oo.GetAnnotations()
+			anno[constants.DSMClusterAnno] = cluster
+			oo.SetAnnotations(anno)
+		}
+		s.Obj = oo
 	}
 	namespace := ""
 	name := ""

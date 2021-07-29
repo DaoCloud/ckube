@@ -3,15 +3,17 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	"net/http"
-	"testing"
 )
 
 type fakeWriter struct {
@@ -175,10 +177,10 @@ func TestProxy(t *testing.T) {
 			client := fake.NewSimpleClientset(c.kubeResources...)
 			writer := fakeWriter{}
 			res := Proxy(&ReqContext{
-				Kube:    client,
-				Store:   s,
-				Request: req,
-				Writer:  &writer,
+				ClusterClients: map[string]kubernetes.Interface{"": client},
+				Store:          s,
+				Request:        req,
+				Writer:         &writer,
 			})
 			assert.Equal(t, c.expectCode, writer.code)
 			assert.Equal(t, c.expectRes, res)
