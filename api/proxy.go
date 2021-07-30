@@ -21,6 +21,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8labels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 )
 
 func getGVRFromReq(req *http.Request) store.GroupVersionResource {
@@ -177,9 +179,6 @@ func Proxy(r *ReqContext) interface{} {
 		cluster = common.GetConfig().DefaultCluster
 	}
 	gvr := getGVRFromReq(r.Request)
-	if resourceName != "" {
-		return ProxySingleResources(r, gvr, namespace, cluster, resourceName)
-	}
 	for k, v := range r.Request.URL.Query() {
 		switch k {
 		case "labelSelector":
@@ -196,6 +195,9 @@ func Proxy(r *ReqContext) interface{} {
 	if !r.Store.IsStoreGVR(gvr) || r.Request.Method != "GET" {
 		log.Debugf("gvr %v no cached or method not GET", gvr)
 		return proxyPass(r, cluster)
+	}
+	if resourceName != "" {
+		return ProxySingleResources(r, gvr, namespace, cluster, resourceName)
 	}
 	// default only get default cluster's resources,
 	// If you want to get all clusters' resources,
@@ -333,7 +335,7 @@ func proxyPassWatch(r *ReqContext, cluster string) interface{} {
 	r.Request.URL.RawQuery = q.Encode()
 	u := r.Request.URL.String()
 	log.Debugf("proxyPass url: %s", u)
-	reader, err := r.ClusterClients[cluster].Discovery().RESTClient().Get().Timeout(30 * time.Minute).RequestURI(u).Stream(context.Background())
+	reader, err := getRequest(r, cluster).Timeout(30 * time.Minute).RequestURI(u).Stream(context.Background())
 	if err != nil {
 		if es, ok := err.(*errors.StatusError); ok {
 			return errorProxy(r.Writer, es.ErrStatus)
@@ -364,6 +366,23 @@ func proxyPassWatch(r *ReqContext, cluster string) interface{} {
 	}
 }
 
+func getRequest(r *ReqContext, cluster string) *rest.Request {
+	c := r.ClusterClients[cluster].Discovery().RESTClient()
+	switch r.Request.Method {
+	case "GET":
+		return c.Get()
+	case "POST":
+		return c.Post()
+	case "DELETE":
+		return c.Delete()
+	case "PUT":
+		return c.Put()
+	case "PATCH":
+		return c.Patch(types.PatchType(r.Request.Header.Get("Content-Type")))
+	}
+	return c.Get()
+}
+
 func proxyPass(r *ReqContext, cluster string) interface{} {
 	if cluster == "" {
 		cluster = common.GetConfig().DefaultCluster
@@ -381,7 +400,7 @@ func proxyPass(r *ReqContext, cluster string) interface{} {
 	}
 	u := r.Request.URL.String()
 	log.Debugf("proxyPass url: %s", u)
-	res, err := r.ClusterClients[cluster].Discovery().RESTClient().Get().RequestURI(u).DoRaw(context.Background())
+	res, err := getRequest(r, cluster).RequestURI(u).DoRaw(context.Background())
 	if err != nil {
 		if es, ok := err.(*errors.StatusError); ok {
 			return errorProxy(r.Writer, es.ErrStatus)

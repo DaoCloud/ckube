@@ -35,44 +35,44 @@ var (
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"GET:/apis/{group}/{version}/namespaces/{namespace}/{resourceType}": {
+		"/apis/{group}/{version}/namespaces/{namespace}/{resourceType}": {
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"GET:/apis/{group}/{version}/{resourceType}": {
+		"/apis/{group}/{version}/{resourceType}": {
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"GET:/api/{version}/{resourceType}": {
+		"/api/{version}/{resourceType}": {
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"GET:/api/{version}/namespaces/{namespace}/{resourceType}": {
+		"/api/{version}/namespaces/{namespace}/{resourceType}": {
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
 
 		// single resources
-		"GET:/apis/{group}/{version}/namespaces/{namespace}/{resourceType}/{resource}": {
+		"/apis/{group}/{version}/namespaces/{namespace}/{resourceType}/{resource}": {
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"GET:/apis/{group}/{version}/{resourceType}/{resource}": {
+		"/apis/{group}/{version}/{resourceType}/{resource}": {
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"GET:/api/{version}/{resourceType}/{resource}": {
+		"/api/{version}/{resourceType}/{resource}": {
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"GET:/api/{version}/namespaces/{namespace}/{resourceType}/{resource}": {
+		"/api/{version}/namespaces/{namespace}/{resourceType}/{resource}": {
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,

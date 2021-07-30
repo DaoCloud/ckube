@@ -112,7 +112,7 @@ func parseMethodPath(key string) (method, path string) {
 		method = keys[0]
 		path = strings.Join(keys[1:], ":")
 	} else {
-		method = "GET"
+		method = "*"
 		path = key
 	}
 	return
@@ -133,7 +133,12 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]rout
 			if route.prefix {
 				rt = router.PathPrefix(path)
 			} else {
-				rt = router.Path(path).Methods(method)
+				rt = router.Path(path)
+				if method != "*" {
+					rt = rt.Methods(method)
+				} else {
+					rt = rt.Methods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD")
+				}
 			}
 			rt.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 				defer func() {
