@@ -66,25 +66,6 @@ func errorProxy(w http.ResponseWriter, err v1.Status) interface{} {
 	return err
 }
 
-//func init() {
-//	t := time.NewTimer(3 * time.Second)
-//	go func() {
-//		select {
-//		case <-t.C:
-//			c := kubernetes.NewForConfigOrDie(&rest.Config{
-//				Host: "http://127.0.0.1:3033",
-//			})
-//			pods, err := c.CoreV1().Pods("").List(context.Background(), v1.ListOptions{
-//				TypeMeta: v1.TypeMeta{
-//					Kind: "dsm-cluster1",
-//					APIVersion: "x",
-//				},
-//			})
-//			log.Errorf("pods: %v, err: %v", len(pods.Items), err)
-//		}
-//	}()
-//}
-
 func ProxySingleResources(r *ReqContext, gvr store.GroupVersionResource, cluster, namespace, resource string) interface{} {
 	res := r.Store.Get(gvr, cluster, namespace, resource)
 	if res == nil {
@@ -368,19 +349,29 @@ func proxyPassWatch(r *ReqContext, cluster string) interface{} {
 
 func getRequest(r *ReqContext, cluster string) *rest.Request {
 	c := r.ClusterClients[cluster].Discovery().RESTClient()
+	var req *rest.Request
 	switch r.Request.Method {
 	case "GET":
 		return c.Get()
 	case "POST":
-		return c.Post()
+		req = c.Post()
 	case "DELETE":
-		return c.Delete()
+		req = c.Delete()
 	case "PUT":
-		return c.Put()
+		req = c.Put()
 	case "PATCH":
-		return c.Patch(types.PatchType(r.Request.Header.Get("Content-Type")))
+		req = c.Patch(types.PatchType(r.Request.Header.Get("Content-Type")))
+	default:
+		log.Errorf("unexpected method: %s", r.Request.Method)
+		return nil
 	}
-	return c.Get()
+	for k, v := range r.Request.Header {
+		if len(v) > 0 {
+			req = req.SetHeader(k, v[0])
+		}
+	}
+	req = req.Body(r.Request.Body)
+	return req
 }
 
 func proxyPass(r *ReqContext, cluster string) interface{} {
