@@ -89,8 +89,8 @@ func (m *muxServer) Run() error {
 	m.server = &http.Server{
 		Addr:         m.ListenAddr,
 		Handler:      m.router,
-		ReadTimeout:  120 * time.Second,
-		WriteTimeout: 120 * time.Second,
+		ReadTimeout:  30 * time.Minute,
+		WriteTimeout: 30 * time.Minute,
 	}
 	log.Infof("starting server at %v", m.ListenAddr)
 	return m.server.ListenAndServe()

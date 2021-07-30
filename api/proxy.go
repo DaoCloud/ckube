@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"gitlab.daocloud.cn/dsm-public/common/constants"
@@ -62,15 +64,27 @@ func errorProxy(w http.ResponseWriter, err v1.Status) interface{} {
 	return err
 }
 
-func ProxySingleResources(r *ReqContext, gvr store.GroupVersionResource, namespace, resource string) interface{} {
-	cluster := ""
-	clusterPrefix := "dsm-cluster-"
-	if rv, ok := r.Request.URL.Query()["resourceVersion"]; ok && len(rv) == 1 && strings.HasPrefix(rv[0], clusterPrefix) {
-		cluster = rv[0][len(clusterPrefix):]
-	} else if ok {
-		return proxyPass(r, cluster)
-	}
-	res := r.Store.Get(gvr, cluster, namespace, resource) // todo
+//func init() {
+//	t := time.NewTimer(3 * time.Second)
+//	go func() {
+//		select {
+//		case <-t.C:
+//			c := kubernetes.NewForConfigOrDie(&rest.Config{
+//				Host: "http://127.0.0.1:3033",
+//			})
+//			pods, err := c.CoreV1().Pods("").List(context.Background(), v1.ListOptions{
+//				TypeMeta: v1.TypeMeta{
+//					Kind: "dsm-cluster1",
+//					APIVersion: "x",
+//				},
+//			})
+//			log.Errorf("pods: %v, err: %v", len(pods.Items), err)
+//		}
+//	}()
+//}
+
+func ProxySingleResources(r *ReqContext, gvr store.GroupVersionResource, cluster, namespace, resource string) interface{} {
+	res := r.Store.Get(gvr, cluster, namespace, resource)
 	if res == nil {
 		return errorProxy(r.Writer, v1.Status{
 			Status:  v1.StatusFailure,
@@ -83,14 +97,32 @@ func ProxySingleResources(r *ReqContext, gvr store.GroupVersionResource, namespa
 	return res
 }
 
-func parsePaginateAndLabels(labelSelectorStr string) (*page.Paginate, *v1.LabelSelector, error) {
+func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelSelector, string, error) {
 	var labels *v1.LabelSelector
 	var paginate page.Paginate
+	var labelSelectorStr string
+	clusterPrefix := "dsm-cluster-"
+	cluster := ""
+	query := r.URL.Query()
+	for k, v := range query {
+		switch k {
+		case "labelSelector": // For List options
+			labelSelectorStr = v[0]
+		case "fieldManager", "resourceVersion": // For Get Create Patch Update actions.
+			if strings.HasPrefix(v[0], clusterPrefix) {
+				cluster = v[0][len(clusterPrefix):]
+			}
+			query.Del(k)
+		}
+	}
+	if ls, ok := query["labelSelector"]; ok {
+		labelSelectorStr = ls[0]
+	}
 	if labelSelectorStr != "" {
 		var err error
 		labels, err = kube.ParseToLabelSelector(labelSelectorStr)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, cluster, err
 		}
 		paginateStr := ""
 		if ps, ok := labels.MatchLabels[constants.PaginateKey]; ok {
@@ -106,7 +138,7 @@ func parsePaginateAndLabels(labelSelectorStr string) (*page.Paginate, *v1.LabelS
 					if len(m.Values) > 0 {
 						paginateStr, err = kube.MergeValues(m.Values)
 						if err != nil {
-							return nil, labels, err
+							return nil, labels, cluster, err
 						}
 					}
 				} else {
@@ -118,13 +150,18 @@ func parsePaginateAndLabels(labelSelectorStr string) (*page.Paginate, *v1.LabelS
 		if paginateStr != "" {
 			rr, err := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(paginateStr)
 			if err != nil {
-				return nil, labels, err
+				return nil, labels, cluster, err
 			}
 			json.Unmarshal(rr, &paginate)
 			delete(labels.MatchLabels, constants.PaginateKey)
 		}
+		query.Set("labelSelector", labels.String())
 	}
-	return &paginate, labels, nil
+	r.URL.RawQuery = query.Encode()
+	if cs := paginate.GetClusters(); len(cs) > 0 && cluster == "" {
+		cluster = cs[0]
+	}
+	return &paginate, labels, cluster, nil
 }
 
 func Proxy(r *ReqContext) interface{} {
@@ -132,38 +169,33 @@ func Proxy(r *ReqContext) interface{} {
 	namespace := mux.Vars(r.Request)["namespace"]
 	resourceName := mux.Vars(r.Request)["resource"]
 
+	paginate, labels, cluster, err := parsePaginateAndLabelsAndClean(r.Request)
+	if err != nil {
+		return proxyPass(r, common.GetConfig().DefaultCluster)
+	}
+	if cluster == "" {
+		cluster = common.GetConfig().DefaultCluster
+	}
 	gvr := getGVRFromReq(r.Request)
 	if resourceName != "" {
-		return ProxySingleResources(r, gvr, namespace, resourceName)
+		return ProxySingleResources(r, gvr, namespace, cluster, resourceName)
 	}
-	labelSelectorStr := ""
-	var paginate *page.Paginate
-	var labels *v1.LabelSelector
-	var err error
 	for k, v := range r.Request.URL.Query() {
 		switch k {
 		case "labelSelector":
-			labelSelectorStr = strings.Join(v, ",")
-			paginate, labels, err = parsePaginateAndLabels(labelSelectorStr)
-			if err != nil {
-				return proxyPass(r, common.GetConfig().DefaultCluster)
-			}
-		default:
-			log.Warnf("got unexpected query key: %s, value: %v, proxyPass to api server", k, v)
-			return proxyPass(r, common.GetConfig().DefaultCluster)
 		case "timeoutSeconds":
 		case "timeout":
+		default:
+			log.Warnf("got unexpected query key: %s, value: %v, proxyPass to api server", k, v)
+			return proxyPass(r, cluster)
 		}
 	}
 	if paginate == nil {
 		paginate = &page.Paginate{}
 	}
-	if !r.Store.IsStoreGVR(gvr) {
-		log.Debugf("gvr %v no cached", gvr)
-		if cs := paginate.GetClusters(); len(cs) == 1 {
-			return proxyPass(r, cs[0])
-		}
-		return proxyPass(r, common.GetConfig().DefaultCluster)
+	if !r.Store.IsStoreGVR(gvr) || r.Request.Method != "GET" {
+		log.Debugf("gvr %v no cached or method not GET", gvr)
+		return proxyPass(r, cluster)
 	}
 	// default only get default cluster's resources,
 	// If you want to get all clusters' resources,
@@ -281,19 +313,71 @@ func Proxy(r *ReqContext) interface{} {
 	}
 }
 
-func proxyPass(r *ReqContext, cluster string) interface{} {
-
-	ls := r.Request.URL.Query().Get("labelSelector")
-	if ls != "" {
-		parts := strings.Split(ls, ",")
-		pp := []string{}
-		for _, part := range parts {
-			if strings.HasPrefix(part, constants.PaginateKey) {
-				continue
-			}
-			pp = append(pp, part)
+func isWatchRequest(r *http.Request) bool {
+	query := r.URL.Query()
+	if w, ok := query["watch"]; ok {
+		ws := strings.ToLower(w[0])
+		if ws == "1" || ws == "y" || ws == "true" {
+			return true
 		}
-		r.Request.URL.Query().Set("labelSelector", strings.Join(pp, ","))
+	}
+	if strings.Contains(r.URL.Path, "/watch/") {
+		return true
+	}
+	return false
+}
+
+func proxyPassWatch(r *ReqContext, cluster string) interface{} {
+	q := r.Request.URL.Query()
+	q.Set("timeout", "30m")
+	r.Request.URL.RawQuery = q.Encode()
+	u := r.Request.URL.String()
+	log.Debugf("proxyPass url: %s", u)
+	reader, err := r.ClusterClients[cluster].Discovery().RESTClient().Get().Timeout(30 * time.Minute).RequestURI(u).Stream(context.Background())
+	if err != nil {
+		if es, ok := err.(*errors.StatusError); ok {
+			return errorProxy(r.Writer, es.ErrStatus)
+		}
+		return err
+	}
+	r.Writer.Header().Set("Content-Type", "application/json")
+	r.Writer.Header().Set("Transfer-Encoding", "chunked")
+	r.Writer.Header().Set("Connection", "keep-alive")
+	buf := bytes.NewBuffer([]byte{})
+	for {
+		t := make([]byte, 1)
+		_, err := reader.Read(t)
+		if err != nil {
+			r.Writer.Write(buf.Bytes())
+			return nil
+		}
+		buf.Write(t)
+		if t[0] == '\n' {
+			r.Writer.Write(buf.Bytes())
+			buf.Reset()
+		}
+		select {
+		case <-r.Request.Context().Done():
+			return nil
+		default:
+		}
+	}
+}
+
+func proxyPass(r *ReqContext, cluster string) interface{} {
+	if cluster == "" {
+		cluster = common.GetConfig().DefaultCluster
+	}
+	if _, ok := r.ClusterClients[cluster]; !ok {
+		return errorProxy(r.Writer, v1.Status{
+			Status:  v1.StatusFailure,
+			Message: "cluster not found",
+			Reason:  v1.StatusReason(fmt.Sprintf("request cluster not found: %s", cluster)),
+			Code:    404,
+		})
+	}
+	if isWatchRequest(r.Request) {
+		return proxyPassWatch(r, cluster)
 	}
 	u := r.Request.URL.String()
 	log.Debugf("proxyPass url: %s", u)
