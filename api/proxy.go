@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
@@ -80,6 +82,18 @@ func ProxySingleResources(r *ReqContext, gvr store.GroupVersionResource, cluster
 	return res
 }
 
+type bytesBody struct {
+	io.Reader
+}
+
+func (b *bytesBody) Close() error {
+	return nil
+}
+
+func wrapReader(reader io.Reader) io.ReadCloser {
+	return &bytesBody{reader}
+}
+
 func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelSelector, string, error) {
 	var labels *v1.LabelSelector
 	var paginate page.Paginate
@@ -94,8 +108,24 @@ func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelS
 		case "fieldManager", "resourceVersion": // For Get Create Patch Update actions.
 			if strings.HasPrefix(v[0], clusterPrefix) {
 				cluster = v[0][len(clusterPrefix):]
+				query.Del(k)
 			}
-			query.Del(k)
+		}
+	}
+	if r.Method == http.MethodDelete {
+		body := r.Body
+		opts, err := ioutil.ReadAll(body)
+		if err == nil {
+			options := v1.DeleteOptions{}
+			json.Unmarshal(opts, &options)
+			if len(options.DryRun) > 0 && strings.HasPrefix(options.DryRun[0], clusterPrefix) {
+				cluster = options.DryRun[0][len(clusterPrefix):]
+				options.DryRun = options.DryRun[1:]
+				bs, _ := json.Marshal(options)
+				r.Body = wrapReader(bytes.NewBuffer(bs))
+			}
+		} else {
+			log.Warnf("read body error: %v", err)
 		}
 	}
 	if ls, ok := query["labelSelector"]; ok {
@@ -151,7 +181,6 @@ func Proxy(r *ReqContext) interface{} {
 	//version := mux.Vars(r.Request)["version"]
 	namespace := mux.Vars(r.Request)["namespace"]
 	resourceName := mux.Vars(r.Request)["resource"]
-
 	paginate, labels, cluster, err := parsePaginateAndLabelsAndClean(r.Request)
 	if err != nil {
 		return proxyPass(r, common.GetConfig().DefaultCluster)
@@ -351,15 +380,15 @@ func getRequest(r *ReqContext, cluster string) *rest.Request {
 	c := r.ClusterClients[cluster].Discovery().RESTClient()
 	var req *rest.Request
 	switch r.Request.Method {
-	case "GET":
+	case http.MethodGet:
 		return c.Get()
-	case "POST":
+	case http.MethodPost:
 		req = c.Post()
-	case "DELETE":
+	case http.MethodDelete:
 		req = c.Delete()
-	case "PUT":
+	case http.MethodPut:
 		req = c.Put()
-	case "PATCH":
+	case http.MethodPatch:
 		req = c.Patch(types.PatchType(r.Request.Header.Get("Content-Type")))
 	default:
 		log.Errorf("unexpected method: %s", r.Request.Method)

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"gitlab.daocloud.cn/dsm-public/common/log"
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/server"
@@ -58,27 +60,17 @@ func GetKubernetesClientWithFile(kubeconfig, context string) (kubernetes.Interfa
 	return clientset, err
 }
 
-func main() {
-	configFile := ""
-	listen := ":3033"
-	debug := false
-	flag.StringVar(&configFile, "c", "config/local.json", "config file path")
-	flag.StringVar(&listen, "a", ":80", "listen port")
-	flag.BoolVar(&debug, "d", false, "debug mode")
-	flag.Parse()
-	if debug {
-		log.SetDebug()
-	}
+func loadFromConfig(configFile string) (map[string]kubernetes.Interface, watcher.Watcher, store.Store, error) {
 
 	cfg := common.Config{}
 	if bs, err := ioutil.ReadFile(configFile); err != nil {
-		fmt.Fprintf(os.Stderr, "config file load error: %v", err)
-		os.Exit(1)
+		log.Errorf("config file load error: %v", err)
+		return nil, nil, nil, err
 	} else {
 		err := json.Unmarshal(bs, &cfg)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "config file load error: %v", err)
-			os.Exit(3)
+			log.Errorf("config file load error: %v", err)
+			return nil, nil, nil, err
 		}
 	}
 	clusterConfigs := map[string]rest.Config{}
@@ -125,6 +117,53 @@ func main() {
 	m := memory.NewMemoryStore(indexConf)
 	w := watcher.NewWatcher(clusterConfigs, storeGVRConfig, m)
 	w.Start()
-	ser := server.NewMuxServer(listen, clusterClients, m)
+	return clusterClients, w, m, nil
+}
+
+func main() {
+	configFile := ""
+	listen := ":80"
+	debug := false
+	flag.StringVar(&configFile, "c", "config/local.json", "config file path")
+	flag.StringVar(&listen, "a", ":80", "listen port")
+	flag.BoolVar(&debug, "d", false, "debug mode")
+	flag.Parse()
+	if debug {
+		log.SetDebug()
+	}
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		panic(fmt.Errorf("start watcher error: %v", err))
+	}
+	if watcher.Add(configFile) != nil {
+		panic(fmt.Errorf("watch %s error: %v", configFile, err))
+	}
+	clis, w, s, err := loadFromConfig(configFile)
+	if err != nil {
+		log.Errorf("load from config file error: %v", err)
+		os.Exit(1)
+	}
+	ser := server.NewMuxServer(listen, clis, s)
+	go func() {
+		for {
+			select {
+			case <-watcher.Events:
+				clis, rw, rs, err := loadFromConfig(configFile)
+				if err != nil {
+					prommonitor.ConfigReload.WithLabelValues("failed").Inc()
+					log.Errorf("reload config error: %v", err)
+					continue
+				}
+				w.Stop()
+				w = rw
+				ser.ResetStore(rs, clis) // reset store
+				prommonitor.ConfigReload.WithLabelValues("success").Inc()
+				log.Infof("auto reloaded config successfully")
+			case e := <-watcher.Errors:
+				log.Errorf("watch config file error: %v", e)
+			}
+			time.Sleep(time.Second * 5)
+		}
+	}()
 	ser.Run()
 }

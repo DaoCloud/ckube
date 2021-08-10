@@ -9,7 +9,7 @@ import (
 
 const (
 	ComponentMetricsLabel string = "component"
-	CkubeComponent string = "ckube"
+	CkubeComponent        string = "ckube"
 )
 
 var (
@@ -17,6 +17,14 @@ var (
 		Name: "up",
 		Help: "Component up status",
 	}, []string{ComponentMetricsLabel})
+	ConfigReload = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "ckube_reload_config_total",
+		Help: "Config reload count",
+	}, []string{"status"})
+	Requests = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "ckube_requests_total",
+		Help: "Requests count",
+	}, []string{"cluster", "group", "version", "kind", "single", "cached"})
 )
 
 func PromHandler(r *api.ReqContext) interface{} {
