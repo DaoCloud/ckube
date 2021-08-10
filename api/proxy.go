@@ -207,7 +207,7 @@ func Proxy(r *ReqContext) interface{} {
 		return proxyPass(r, cluster)
 	}
 	if resourceName != "" {
-		return ProxySingleResources(r, gvr, namespace, cluster, resourceName)
+		return ProxySingleResources(r, gvr, cluster, namespace, resourceName)
 	}
 	// default only get default cluster's resources,
 	// If you want to get all clusters' resources,
