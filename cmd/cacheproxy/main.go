@@ -22,9 +22,12 @@ import (
 )
 
 func GetK8sConfigConfigWithFile(kubeconfig, context string) *rest.Config {
-	config, _ := rest.InClusterConfig()
-	if config != nil {
-		return config
+	var config *rest.Config
+	if kubeconfig == "" && context == "" {
+		config, _ := rest.InClusterConfig()
+		if config != nil {
+			return config
+		}
 	}
 	if kubeconfig != "" {
 		info, err := os.Stat(kubeconfig)
