@@ -144,7 +144,7 @@ func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
 		}
 		ww, err := rt.Get().RequestURI(url).Timeout(time.Hour).Watch(ctx)
 		if err != nil {
-			log.Errorf("create watcher error: %v", err)
+			log.Errorf("cluster(%s): create watcher for %s error: %v", cluster, url, err)
 			time.Sleep(time.Second * 3)
 		} else {
 		resultChan:
@@ -160,11 +160,11 @@ func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
 						case watch.Deleted:
 							w.store.OnResourceDeleted(r, cluster, rr.Object)
 						case watch.Error:
-							log.Warnf("watch stream(%v) error: %v", r, rr.Object)
+							log.Warnf("cluster(%s): watch stream(%v) error: %v", cluster, r, rr.Object)
 						}
 					} else {
 						w.store.Clean(r, cluster)
-						log.Warnf("watch stream(%v) closed", r)
+						log.Warnf("cluster(%s): watch stream(%v) closed", cluster, r)
 						break resultChan
 					}
 				case <-w.stop:

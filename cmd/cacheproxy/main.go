@@ -60,7 +60,7 @@ func GetKubernetesClientWithFile(kubeconfig, context string) (kubernetes.Interfa
 	return clientset, err
 }
 
-func loadFromConfig(configFile string) (map[string]kubernetes.Interface, watcher.Watcher, store.Store, error) {
+func loadFromConfig(kubeConfig, configFile string) (map[string]kubernetes.Interface, watcher.Watcher, store.Store, error) {
 
 	cfg := common.Config{}
 	if bs, err := ioutil.ReadFile(configFile); err != nil {
@@ -82,16 +82,16 @@ func loadFromConfig(configFile string) (map[string]kubernetes.Interface, watcher
 		}
 	}
 	for name, ctx := range cfg.Clusters {
-		c := GetK8sConfigConfigWithFile("", ctx.Context)
+		c := GetK8sConfigConfigWithFile(kubeConfig, ctx.Context)
 		if c == nil {
-			fmt.Fprintf(os.Stderr, "init k8s config error")
-			os.Exit(2)
+			log.Errorf("init k8s config error")
+			return nil, nil, nil, fmt.Errorf("init k8s config error")
 		}
 		clusterConfigs[name] = *c
-		client, err := GetKubernetesClientWithFile("", ctx.Context)
+		client, err := GetKubernetesClientWithFile(kubeConfig, ctx.Context)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "init k8s client error: %v", err)
-			os.Exit(2)
+			log.Errorf("init k8s client error: %v", err)
+			return nil, nil, nil, err
 		}
 		clusterClients[name] = client
 	}
@@ -123,9 +123,11 @@ func loadFromConfig(configFile string) (map[string]kubernetes.Interface, watcher
 func main() {
 	configFile := ""
 	listen := ":80"
+	kubeConfig := ""
 	debug := false
 	flag.StringVar(&configFile, "c", "config/local.json", "config file path")
 	flag.StringVar(&listen, "a", ":80", "listen port")
+	flag.StringVar(&kubeConfig, "k", "", "kube config file name")
 	flag.BoolVar(&debug, "d", false, "debug mode")
 	flag.Parse()
 	if debug {
@@ -138,7 +140,7 @@ func main() {
 	if watcher.Add(configFile) != nil {
 		panic(fmt.Errorf("watch %s error: %v", configFile, err))
 	}
-	clis, w, s, err := loadFromConfig(configFile)
+	clis, w, s, err := loadFromConfig(kubeConfig, configFile)
 	if err != nil {
 		log.Errorf("load from config file error: %v", err)
 		os.Exit(1)
@@ -148,7 +150,7 @@ func main() {
 		for {
 			select {
 			case <-watcher.Events:
-				clis, rw, rs, err := loadFromConfig(configFile)
+				clis, rw, rs, err := loadFromConfig(kubeConfig, configFile)
 				if err != nil {
 					prommonitor.ConfigReload.WithLabelValues("failed").Inc()
 					log.Errorf("reload config error: %v", err)
