@@ -10,7 +10,7 @@ require (
 	github.com/prometheus/client_golang v1.7.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.6.1
-	gitlab.daocloud.cn/dsm-public/common v0.0.0-20210427060128-9a4957b607dd
+	gitlab.daocloud.cn/dsm-public/common v0.0.0-20210729052505-e7e0665cf3e9
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43 // indirect
 	k8s.io/api v0.21.0
 	k8s.io/apimachinery v0.21.0

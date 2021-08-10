@@ -29,8 +29,5 @@ FROM nginx:alpine
 WORKDIR /app
 
 COPY --from=build /app/dist/cacheproxy dist/cacheproxy
-ADD entrypoint.sh .
-RUN chmod +x entrypoint.sh
-ADD nginx.conf /etc/nginx/nginx.conf
 
-CMD ["sh", "/app/entrypoint.sh"]
+CMD ["/app/dist/cacheproxy"]

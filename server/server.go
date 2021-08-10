@@ -25,12 +25,12 @@ type Server interface {
 }
 
 type muxServer struct {
-	LogLevel   string
-	ListenAddr string
-	router     *mux.Router
-	server     *http.Server
-	store      store.Store
-	kube       kubernetes.Interface
+	LogLevel       string
+	ListenAddr     string
+	router         *mux.Router
+	server         *http.Server
+	store          store.Store
+	clusterClients map[string]kubernetes.Interface
 }
 
 type statusWriter struct {
@@ -72,12 +72,12 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func NewMuxServer(listenAddr string, kube kubernetes.Interface, s store.Store) Server {
+func NewMuxServer(listenAddr string, clusterClients map[string]kubernetes.Interface, s store.Store) Server {
 	ser := muxServer{
-		kube:       kube,
-		store:      s,
-		ListenAddr: listenAddr,
-		router:     mux.NewRouter(),
+		clusterClients: clusterClients,
+		store:          s,
+		ListenAddr:     listenAddr,
+		router:         mux.NewRouter(),
 	}
 	ser.registerRoutes(ser.router, handleMap)
 	ser.router.Use(loggingMiddleware)
@@ -89,8 +89,8 @@ func (m *muxServer) Run() error {
 	m.server = &http.Server{
 		Addr:         m.ListenAddr,
 		Handler:      m.router,
-		ReadTimeout:  120 * time.Second,
-		WriteTimeout: 120 * time.Second,
+		ReadTimeout:  30 * time.Minute,
+		WriteTimeout: 30 * time.Minute,
 	}
 	log.Infof("starting server at %v", m.ListenAddr)
 	return m.server.ListenAndServe()
@@ -112,7 +112,7 @@ func parseMethodPath(key string) (method, path string) {
 		method = keys[0]
 		path = strings.Join(keys[1:], ":")
 	} else {
-		method = "GET"
+		method = "*"
 		path = key
 	}
 	return
@@ -133,7 +133,12 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]rout
 			if route.prefix {
 				rt = router.PathPrefix(path)
 			} else {
-				rt = router.Path(path).Methods(method)
+				rt = router.Path(path)
+				if method != "*" {
+					rt = rt.Methods(method)
+				} else {
+					rt = rt.Methods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD")
+				}
 			}
 			rt.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 				defer func() {
@@ -146,10 +151,10 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]rout
 				}()
 				var res interface{}
 				res = route.handler(&api.ReqContext{
-					Kube:    m.kube,
-					Store:   m.store,
-					Request: r,
-					Writer:  writer,
+					ClusterClients: m.clusterClients,
+					Store:          m.store,
+					Request:        r,
+					Writer:         writer,
 				})
 				if res == nil {
 					return

@@ -1,4 +1,13 @@
 {
+  "clusters": {
+    "cluster1": {
+      "context": "dce-admin"
+    },
+    "cluster2": {
+      "context": "kind-cluster1"
+    }
+  },
+  "default_cluster": "default",
   "proxies": [
     {
       "group": "",
@@ -60,7 +69,6 @@
         "created_at": "{.metadata.creationTimestamp}"
       }
     },
-
     {
       "group": "networking.istio.io",
       "version": "v1alpha3",

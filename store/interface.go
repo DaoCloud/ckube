@@ -14,10 +14,10 @@ type Query struct {
 
 type Store interface {
 	IsStoreGVR(gvr GroupVersionResource) bool
-	Clean(gvr GroupVersionResource) error
-	OnResourceAdded(gvr GroupVersionResource, obj interface{}) error
-	OnResourceModified(gvr GroupVersionResource, obj interface{}) error
-	OnResourceDeleted(gvr GroupVersionResource, obj interface{}) error
+	Clean(gvr GroupVersionResource, cluster string) error
+	OnResourceAdded(gvr GroupVersionResource, cluster string, obj interface{}) error
+	OnResourceModified(gvr GroupVersionResource, cluster string, obj interface{}) error
+	OnResourceDeleted(gvr GroupVersionResource, cluster string, obj interface{}) error
 	Query(gvr GroupVersionResource, query Query) QueryResult
-	Get(gvr GroupVersionResource, namespace, name string) interface{}
+	Get(gvr GroupVersionResource, cluster string, namespace, name string) interface{}
 }

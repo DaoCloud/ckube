@@ -2,13 +2,15 @@ package memory
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
+	"gitlab.daocloud.cn/dsm-public/common/constants"
 	"gitlab.daocloud.cn/dsm-public/common/page"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
 )
 
 var podsGVR = store.GroupVersionResource{
@@ -75,6 +77,9 @@ func TestMemoryStore_Query(t *testing.T) {
 						Name:      "test1",
 						Namespace: "test",
 						UID:       "test",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}),
 				Total: 2,
@@ -110,6 +115,9 @@ func TestMemoryStore_Query(t *testing.T) {
 						Name:      "test2",
 						Namespace: "test",
 						UID:       "test",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}),
 				Total: 2,
@@ -150,12 +158,18 @@ func TestMemoryStore_Query(t *testing.T) {
 						Name:      "hello",
 						Namespace: "test",
 						UID:       "test",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}, &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "llo",
 						Namespace: "test",
 						UID:       "test",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}),
 				Total: 2,
@@ -196,6 +210,9 @@ func TestMemoryStore_Query(t *testing.T) {
 						Name:      "llo",
 						Namespace: "test",
 						UID:       "test",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}),
 				Total: 1,
@@ -269,12 +286,18 @@ func TestMemoryStore_Query(t *testing.T) {
 						Name:      "hello",
 						Namespace: "test",
 						UID:       "test",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}, &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "l1lo",
 						Namespace: "test",
 						UID:       "test",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}),
 				Total: 2,
@@ -369,18 +392,27 @@ func TestMemoryStore_Query(t *testing.T) {
 						Name:      "test5",
 						Namespace: "test",
 						UID:       "1",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}, &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test1",
 						Namespace: "test",
 						UID:       "2",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}, &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test3",
 						Namespace: "test",
 						UID:       "3",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}),
 				Total: 3,
@@ -421,18 +453,27 @@ func TestMemoryStore_Query(t *testing.T) {
 						Name:      "test3",
 						Namespace: "test",
 						UID:       "3",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}, &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test1",
 						Namespace: "test",
 						UID:       "2",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}, &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test5",
 						Namespace: "test",
 						UID:       "1",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}),
 				Total: 3,
@@ -500,18 +541,27 @@ func TestMemoryStore_Query(t *testing.T) {
 						Name:      "test3",
 						Namespace: "test",
 						UID:       "3",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}, &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test1",
 						Namespace: "test",
 						UID:       "2",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}, &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test5",
 						Namespace: "test1",
 						UID:       "1",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}),
 				Total: 3,
@@ -552,18 +602,27 @@ func TestMemoryStore_Query(t *testing.T) {
 						Name:      "test5",
 						Namespace: "test",
 						UID:       "2",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}, &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test3",
 						Namespace: "test",
 						UID:       "3",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}, &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test1",
 						Namespace: "test",
 						UID:       "11",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}),
 				Total: 3,
@@ -631,18 +690,27 @@ func TestMemoryStore_Query(t *testing.T) {
 						Name:      "test3",
 						Namespace: "test",
 						UID:       "3",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}, &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test1",
 						Namespace: "test",
 						UID:       "11",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}, &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test13",
 						Namespace: "test1",
 						UID:       "20",
+						Annotations: map[string]string{
+							constants.DSMClusterAnno: "",
+						},
 					},
 				}),
 				Total: 4,
@@ -653,7 +721,7 @@ func TestMemoryStore_Query(t *testing.T) {
 		t.Run(fmt.Sprintf("%d-%s", i, c.name), func(t *testing.T) {
 			s := NewMemoryStore(testIndexConf)
 			for _, r := range c.resources {
-				s.OnResourceAdded(c.gvr, r)
+				s.OnResourceAdded(c.gvr, "", r)
 			}
 			res := s.Query(c.gvr, c.query)
 			assert.Equal(t, c.res, res)
