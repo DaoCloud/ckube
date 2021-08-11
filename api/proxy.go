@@ -342,7 +342,10 @@ func proxyPassWatch(r *ReqContext, cluster string) interface{} {
 	r.Request.URL.RawQuery = q.Encode()
 	u := r.Request.URL.String()
 	log.Debugf("proxyPass url: %s", u)
-	reader, err := getRequest(r, cluster).Timeout(30 * time.Minute).RequestURI(u).Stream(context.Background())
+	timeout := 30 * time.Minute
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	reader, err := getRequest(r, cluster, timeout).RequestURI(u).Stream(ctx)
 	if err != nil {
 		if es, ok := err.(*errors.StatusError); ok {
 			return errorProxy(r.Writer, es.ErrStatus)
@@ -373,8 +376,9 @@ func proxyPassWatch(r *ReqContext, cluster string) interface{} {
 	}
 }
 
-func getRequest(r *ReqContext, cluster string) *rest.Request {
-	c := r.ClusterClients[cluster].Discovery().RESTClient()
+func getRequest(r *ReqContext, cluster string, timeout time.Duration) *rest.Request {
+	c := r.ClusterClients[cluster].Discovery().RESTClient().(*rest.RESTClient)
+	c.Client.Timeout = timeout
 	var req *rest.Request
 	switch r.Request.Method {
 	case http.MethodGet:
@@ -417,7 +421,10 @@ func proxyPass(r *ReqContext, cluster string) interface{} {
 	}
 	u := r.Request.URL.String()
 	log.Debugf("proxyPass url: %s", u)
-	res, err := getRequest(r, cluster).RequestURI(u).DoRaw(context.Background())
+	timeout := time.Minute
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	res, err := getRequest(r, cluster, timeout).RequestURI(u).DoRaw(ctx)
 	if err != nil {
 		if es, ok := err.(*errors.StatusError); ok {
 			return errorProxy(r.Writer, es.ErrStatus)
