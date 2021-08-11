@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -19,6 +20,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	kubeapi "k8s.io/client-go/tools/clientcmd/api/v1"
+	"sigs.k8s.io/yaml"
 )
 
 func GetK8sConfigConfigWithFile(kubeconfig, context string) *rest.Config {
@@ -78,25 +81,58 @@ func loadFromConfig(kubeConfig, configFile string) (map[string]kubernetes.Interf
 	}
 	clusterConfigs := map[string]rest.Config{}
 	clusterClients := map[string]kubernetes.Interface{}
-	if len(cfg.Clusters) == 0 {
-		cfg.DefaultCluster = "default"
-		cfg.Clusters = map[string]common.Cluster{
-			"default": {Context: ""},
+	kubecfg := kubeapi.Config{}
+	if kubeConfig == "" {
+		defaultConfig := path.Join(os.Getenv("HOME"), ".kube/config")
+		if _, err := os.Stat(defaultConfig); err != nil {
+			// may running in pod
+			log.Info("no kube config found, load from service account.")
+			c := GetK8sConfigConfigWithFile(kubeConfig, "")
+			if c == nil {
+				log.Errorf("init k8s config from service account error")
+				return nil, nil, nil, fmt.Errorf("init k8s config error")
+			}
+			if cfg.DefaultCluster == "" {
+				cfg.DefaultCluster = "default"
+			}
+			clusterConfigs[cfg.DefaultCluster] = *c
+			client, _ := GetKubernetesClientWithFile(kubeConfig, "")
+			clusterClients[cfg.DefaultCluster] = client
+		} else {
+			kubeConfig = defaultConfig
 		}
 	}
-	for name, ctx := range cfg.Clusters {
-		c := GetK8sConfigConfigWithFile(kubeConfig, ctx.Context)
-		if c == nil {
-			log.Errorf("init k8s config error")
-			return nil, nil, nil, fmt.Errorf("init k8s config error")
-		}
-		clusterConfigs[name] = *c
-		client, err := GetKubernetesClientWithFile(kubeConfig, ctx.Context)
+	if kubeConfig != "" {
+		bs, err := ioutil.ReadFile(kubeConfig)
 		if err != nil {
-			log.Errorf("init k8s client error: %v", err)
+			log.Errorf("read kube config error: %v", err)
 			return nil, nil, nil, err
 		}
-		clusterClients[name] = client
+		err = yaml.Unmarshal(bs, &kubecfg)
+		if err != nil {
+			err = json.Unmarshal(bs, &kubecfg)
+			if err != nil {
+				log.Errorf("parse kube config %s error: %v", kubeConfig, err)
+				return nil, nil, nil, err
+			}
+		}
+		log.Debugf("got kube config: %s", bs)
+		cfg.DefaultCluster = kubecfg.CurrentContext
+
+		for _, ctx := range kubecfg.Contexts {
+			c := GetK8sConfigConfigWithFile(kubeConfig, ctx.Name)
+			if c == nil {
+				log.Errorf("init k8s config error")
+				return nil, nil, nil, fmt.Errorf("init k8s config error")
+			}
+			clusterConfigs[ctx.Name] = *c
+			client, err := GetKubernetesClientWithFile(kubeConfig, ctx.Name)
+			if err != nil {
+				log.Errorf("init k8s client error: %v", err)
+				return nil, nil, nil, err
+			}
+			clusterClients[ctx.Name] = client
+		}
 	}
 	common.InitConfig(&cfg)
 
