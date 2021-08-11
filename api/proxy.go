@@ -128,9 +128,6 @@ func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelS
 			log.Warnf("read body error: %v", err)
 		}
 	}
-	if ls, ok := query["labelSelector"]; ok {
-		labelSelectorStr = ls[0]
-	}
 	if labelSelectorStr != "" {
 		var err error
 		labels, err = kube.ParseToLabelSelector(labelSelectorStr)
