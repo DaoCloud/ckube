@@ -11,7 +11,9 @@ import (
 
 	"gitlab.daocloud.cn/dsm-public/common/log"
 	"gitlab.daocloud.cn/mesh/ckube/api"
+	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/store"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/gorilla/mux"
@@ -155,6 +157,17 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]rout
 						jsonResp(writer, http.StatusInternalServerError, err)
 					}
 				}()
+				if route.authRequired && common.GetConfig().Token != "" {
+					if !strings.Contains(r.Header.Get("Authorization"), common.GetConfig().Token) {
+						jsonResp(writer, http.StatusUnauthorized, v1.Status{
+							Status:  string(v1.StatusReasonUnauthorized),
+							Message: "token missing or error",
+							Reason:  v1.StatusReason("token missing or error"),
+							Code:    401,
+						})
+						return
+					}
+				}
 				var res interface{}
 				res = route.handler(&api.ReqContext{
 					ClusterClients: m.clusterClients,

@@ -16,6 +16,7 @@ type Config struct {
 	Proxies []Proxy `json:"proxies"`
 	//Clusters       map[string]Cluster `json:"clusters"`
 	DefaultCluster string `json:"default_cluster"`
+	Token          string `json:"token"`
 }
 
 var cfg *Config
