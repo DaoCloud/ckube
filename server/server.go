@@ -24,6 +24,7 @@ import (
 type Server interface {
 	Run() error
 	Stop() error
+	ResetStore(store store.Store, clis map[string]kubernetes.Interface)
 }
 
 type muxServer struct {
@@ -108,6 +109,11 @@ func (m *muxServer) Stop() error {
 	return m.server.Shutdown(ctx)
 }
 
+func (m *muxServer) ResetStore(s store.Store, clis map[string]kubernetes.Interface) {
+	m.store = s
+	m.clusterClients = clis
+}
+
 func parseMethodPath(key string) (method, path string) {
 	keys := strings.Split(key, ":")
 	if len(keys) > 1 {
@@ -148,7 +154,7 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]rout
 					if err := recover(); err != nil {
 						log.Errorf("%s:%s request error: %v", method, path, err)
 						debug.PrintStack()
-						jsonResp(writer, http.StatusInternalServerError, nil)
+						jsonResp(writer, http.StatusInternalServerError, err)
 					}
 				}()
 				if route.authRequired && common.GetConfig().Token != "" {

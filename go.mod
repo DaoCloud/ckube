@@ -3,7 +3,7 @@ module gitlab.daocloud.cn/mesh/ckube
 go 1.15
 
 require (
-	github.com/fsnotify/fsnotify v1.4.9 // indirect
+	github.com/fsnotify/fsnotify v1.4.9
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.1 // indirect
 	github.com/gorilla/mux v1.8.0
@@ -15,4 +15,5 @@ require (
 	k8s.io/api v0.21.0
 	k8s.io/apimachinery v0.21.0
 	k8s.io/client-go v0.21.0
+	sigs.k8s.io/yaml v1.2.0
 )
