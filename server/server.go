@@ -45,6 +45,7 @@ type statusWriter struct {
 func (w *statusWriter) WriteHeader(status int) {
 	w.status = status
 	w.ResponseWriter.WriteHeader(status)
+	w.ResponseWriter.(http.Flusher).Flush()
 }
 
 func (w *statusWriter) Write(b []byte) (int, error) {
@@ -52,6 +53,7 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 		w.status = 200
 	}
 	n, err := w.ResponseWriter.Write(b)
+	w.ResponseWriter.(http.Flusher).Flush()
 	w.length += n
 	return n, err
 }
