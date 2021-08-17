@@ -395,11 +395,11 @@ func getRequest(r *ReqContext, cluster string, timeout time.Duration) *rest.Requ
 		log.Errorf("unexpected method: %s", r.Request.Method)
 		return nil
 	}
-	for k, v := range r.Request.Header {
-		if len(v) > 0 {
-			req = req.SetHeader(k, v[0])
-		}
-	}
+	//for k, v := range r.Request.Header {
+	//	if len(v) > 0 {
+	//		req = req.SetHeader(k, v[0])
+	//	}
+	//}
 	req = req.Body(r.Request.Body)
 	return req
 }
