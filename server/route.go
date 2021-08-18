@@ -19,7 +19,7 @@ type route struct {
 var (
 	handleMap = map[string]route{
 		// healthy
-		"GET:/healthy":{
+		"GET:/healthy": {
 			handler: func(r *api.ReqContext) interface{} {
 				r.Writer.Write([]byte("1"))
 				r.Writer.WriteHeader(200)
@@ -27,7 +27,7 @@ var (
 			},
 		},
 		// metrics url
-		"GET:/metrics":{
+		"GET:/metrics": {
 			handler: prommonitor.PromHandler,
 		},
 		"GET:/custom/v1/namespaces/{namespace}/deployments/{deployment}/services": {
@@ -73,6 +73,11 @@ var (
 			successStatus: 200,
 		},
 		"/api/{version}/namespaces/{namespace}/{resourceType}/{resource}": {
+			handler:       api.Proxy,
+			authRequired:  true,
+			successStatus: 200,
+		},
+		"/version": {
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
