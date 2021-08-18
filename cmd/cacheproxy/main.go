@@ -61,7 +61,7 @@ func GetK8sConfigConfigWithFile(kubeconfig, context string) *rest.Config {
 func GetKubernetesClientWithFile(kubeconfig, context string) (kubernetes.Interface, error) {
 	clientset, err := kubernetes.NewForConfig(GetK8sConfigConfigWithFile(kubeconfig, context))
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 	return clientset, err
 }
@@ -96,7 +96,10 @@ func loadFromConfig(kubeConfig, configFile string) (map[string]kubernetes.Interf
 				cfg.DefaultCluster = "default"
 			}
 			clusterConfigs[cfg.DefaultCluster] = *c
-			client, _ := GetKubernetesClientWithFile(kubeConfig, "")
+			client, err := GetKubernetesClientWithFile(kubeConfig, "")
+			if err != nil {
+				return nil, nil, nil, err
+			}
 			clusterClients[cfg.DefaultCluster] = client
 		} else {
 			kubeConfig = defaultConfig
