@@ -185,6 +185,10 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]rout
 				case error:
 					log.Errorf("request return a unexpected error: %v", res)
 					panic(res)
+				case v1.Status:
+					status = int(res.(v1.Status).Code)
+				case *v1.Status:
+					status = int(res.(*v1.Status).Code)
 				case string:
 					writer.Write([]byte(res.(string)))
 					return
