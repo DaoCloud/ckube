@@ -31,6 +31,7 @@ type clusterObj struct {
 type clusterResource map[string]clusterObj
 
 type memoryStore struct {
+	lock        sync.RWMutex
 	resourceMap map[store.GroupVersionResource]clusterResource
 	indexConf   map[store.GroupVersionResource]map[string]string
 	store.Store
@@ -80,11 +81,15 @@ func (m *memoryStore) initResourceNamespace(gvr store.GroupVersionResource, clus
 }
 
 func (m *memoryStore) IsStoreGVR(gvr store.GroupVersionResource) bool {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	_, ok := m.indexConf[gvr]
 	return ok
 }
 
 func (m *memoryStore) Clean(gvr store.GroupVersionResource, cluster string) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	if _, ok := m.resourceMap[gvr]; ok {
 		m.resourceMap[gvr][cluster] = clusterObj{
 			lock:       &sync.RWMutex{},
