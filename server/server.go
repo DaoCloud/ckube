@@ -84,7 +84,7 @@ func NewMuxServer(listenAddr string, clusterClients map[string]kubernetes.Interf
 		ListenAddr:     listenAddr,
 		router:         mux.NewRouter(),
 	}
-	ser.registerRoutes(ser.router, handleMap)
+	ser.registerRoutes(ser.router, routeHandles)
 	ser.router.Use(loggingMiddleware)
 	ser.router.HandleFunc("/metrics", promhttp.Handler().ServeHTTP).Methods("GET")
 	return &ser
@@ -135,17 +135,16 @@ func jsonResp(writer http.ResponseWriter, status int, v interface{}) {
 	writer.Write(b)
 }
 
-func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]route) {
-	for k, r := range handleMap {
-		func(key string, route route) {
-			method, path := parseMethodPath(k)
+func (m *muxServer) registerRoutes(router *mux.Router, handleRoutes []route) {
+	for _, r := range handleRoutes {
+		func(route route) {
 			var rt *mux.Route
 			if route.prefix {
-				rt = router.PathPrefix(path)
+				rt = router.PathPrefix(route.path)
 			} else {
-				rt = router.Path(path)
-				if method != "*" {
-					rt = rt.Methods(method)
+				rt = router.Path(route.path)
+				if r.method != "*" {
+					rt = rt.Methods(route.method)
 				} else {
 					rt = rt.Methods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD")
 				}
@@ -154,7 +153,7 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]rout
 				defer func() {
 					// deal 500 error
 					if err := recover(); err != nil {
-						log.Errorf("%s:%s request error: %v", method, path, err)
+						log.Errorf("%s:%s request error: %v", r.Method, route.path, err)
 						debug.PrintStack()
 						jsonResp(writer, http.StatusInternalServerError, err)
 					}
@@ -200,6 +199,6 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleMap map[string]rout
 				}
 				jsonResp(writer, status, res)
 			})
-		}(k, r)
+		}(r)
 	}
 }
