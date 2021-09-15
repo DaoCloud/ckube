@@ -143,7 +143,7 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleRoutes []route) {
 				rt = router.PathPrefix(route.path)
 			} else {
 				rt = router.Path(route.path)
-				if r.method != "*" {
+				if r.method != "" {
 					rt = rt.Methods(route.method)
 				} else {
 					rt = rt.Methods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD")
