@@ -77,10 +77,11 @@ var (
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"/version": {
+		"/": {
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
+			prefix:        true,
 		},
 	}
 )
