@@ -9,6 +9,8 @@ import (
 type HandleFunc func(r *api.ReqContext) interface{}
 
 type route struct {
+	path          string
+	method        string
 	handler       HandleFunc
 	authRequired  bool
 	adminRequired bool
@@ -17,9 +19,11 @@ type route struct {
 }
 
 var (
-	handleMap = map[string]route{
+	routeHandles = []route{
 		// healthy
-		"GET:/healthy": {
+		{
+			path:   "/healthy",
+			method: "GET",
 			handler: func(r *api.ReqContext) interface{} {
 				r.Writer.Write([]byte("1"))
 				r.Writer.WriteHeader(200)
@@ -27,57 +31,72 @@ var (
 			},
 		},
 		// metrics url
-		"GET:/metrics": {
+		{
+			path:    "/metrics",
+			method:  "GET",
 			handler: prommonitor.PromHandler,
 		},
-		"GET:/custom/v1/namespaces/{namespace}/deployments/{deployment}/services": {
+		{
+			path:          "/custom/v1/namespaces/{namespace}/deployments/{deployment}/services",
+			method:        "GET",
 			handler:       extend.Deploy2Service,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"/apis/{group}/{version}/namespaces/{namespace}/{resourceType}": {
+		{
+			path:          "/apis/{group}/{version}/namespaces/{namespace}/{resourceType}",
+			method:        "GET",
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"/apis/{group}/{version}/{resourceType}": {
+		{
+			path:          "/apis/{group}/{version}/{resourceType}",
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"/api/{version}/{resourceType}": {
+		{
+			path:          "/api/{version}/{resourceType}",
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"/api/{version}/namespaces/{namespace}/{resourceType}": {
+		{
+			path:          "/api/{version}/namespaces/{namespace}/{resourceType}",
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
 
 		// single resources
-		"/apis/{group}/{version}/namespaces/{namespace}/{resourceType}/{resource}": {
+		{
+			path:          "/apis/{group}/{version}/namespaces/{namespace}/{resourceType}/{resource}",
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"/apis/{group}/{version}/{resourceType}/{resource}": {
+		{
+			path:          "/apis/{group}/{version}/{resourceType}/{resource}",
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"/api/{version}/{resourceType}/{resource}": {
+		{
+			path:          "/api/{version}/{resourceType}/{resource}",
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"/api/{version}/namespaces/{namespace}/{resourceType}/{resource}": {
+		{
+			path:          "/api/{version}/namespaces/{namespace}/{resourceType}/{resource}",
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
 		},
-		"/version": {
+		{
+			path:          "/",
+			prefix:        true,
 			handler:       api.Proxy,
 			authRequired:  true,
 			successStatus: 200,
