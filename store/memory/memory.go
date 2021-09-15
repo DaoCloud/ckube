@@ -332,6 +332,12 @@ func (m *memoryStore) buildResourceWithIndex(gvr store.GroupVersionResource, clu
 			anno[constants.DSMClusterAnno] = cluster
 			oo.SetAnnotations(anno)
 		}
+		// BUILD-IN Index: deletion
+		if oo.GetDeletionTimestamp() != nil {
+			s.Index["is_deleted"] = "true"
+		} else {
+			s.Index["is_deleted"] = "false"
+		}
 		s.Obj = oo
 	}
 	namespace := ""
