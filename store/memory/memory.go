@@ -3,6 +3,7 @@ package memory
 import (
 	"bytes"
 	"fmt"
+	"gitlab.daocloud.cn/mesh/ckube/utils/prommonitor"
 	"sort"
 	"strconv"
 	"strings"
@@ -108,6 +109,8 @@ func (m *memoryStore) OnResourceAdded(gvr store.GroupVersionResource, cluster st
 	m.resourceMap[gvr][cluster].namespaces[ns].lock.Lock()
 	defer m.resourceMap[gvr][cluster].namespaces[ns].lock.Unlock()
 	m.resourceMap[gvr][cluster].namespaces[ns].objMap[name] = o
+	prommonitor.Resources.WithLabelValues(cluster, gvr.Group, gvr.Version, gvr.Resource, ns).
+		Set(float64(len(m.resourceMap[gvr][cluster].namespaces[ns].objMap)))
 	return nil
 }
 
@@ -119,6 +122,8 @@ func (m *memoryStore) OnResourceModified(gvr store.GroupVersionResource, cluster
 	m.resourceMap[gvr][cluster].namespaces[ns].lock.Lock()
 	defer m.resourceMap[gvr][cluster].namespaces[ns].lock.Unlock()
 	m.resourceMap[gvr][cluster].namespaces[ns].objMap[name] = o
+	prommonitor.Resources.WithLabelValues(cluster, gvr.Group, gvr.Version, gvr.Resource, ns).
+		Set(float64(len(m.resourceMap[gvr][cluster].namespaces[ns].objMap)))
 	return nil
 }
 
@@ -130,6 +135,8 @@ func (m *memoryStore) OnResourceDeleted(gvr store.GroupVersionResource, cluster 
 	m.resourceMap[gvr][cluster].namespaces[ns].lock.Lock()
 	defer m.resourceMap[gvr][cluster].namespaces[ns].lock.Unlock()
 	delete(m.resourceMap[gvr][cluster].namespaces[ns].objMap, name)
+	prommonitor.Resources.WithLabelValues(cluster, gvr.Group, gvr.Version, gvr.Resource, ns).
+		Set(float64(len(m.resourceMap[gvr][cluster].namespaces[ns].objMap)))
 	return nil
 }
 
@@ -349,5 +356,6 @@ func (m *memoryStore) buildResourceWithIndex(gvr store.GroupVersionResource, clu
 		name = n
 	}
 	s.Index["cluster"] = cluster
+	log.Debugf("memory store: gvr: %v, resources %s/%s, index: %v", gvr, namespace, name, s.Index)
 	return namespace, name, s
 }

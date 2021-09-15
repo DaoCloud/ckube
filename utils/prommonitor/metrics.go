@@ -25,6 +25,10 @@ var (
 		Name: "ckube_requests_total",
 		Help: "Requests count",
 	}, []string{"cluster", "group", "version", "kind", "single", "cached"})
+	Resources = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "ckube_resources_total",
+		Help: "resources count",
+	}, []string{"cluster", "group", "version", "resource", "namespace"})
 )
 
 func PromHandler(r *api.ReqContext) interface{} {

@@ -215,6 +215,7 @@ func Proxy(r *ReqContext) interface{} {
 			log.Errorf("set cluster error: %v", err)
 		}
 	}
+	log.Debugf("got paginate %v", paginate)
 
 	items := make([]interface{}, 0)
 	var total int64 = 0
