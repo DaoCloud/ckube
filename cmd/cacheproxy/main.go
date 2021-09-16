@@ -167,6 +167,7 @@ func main() {
 	listen := ":80"
 	kubeConfig := ""
 	debug := false
+	defaultConfig := path.Join(os.Getenv("HOME"), ".kube/config")
 	flag.StringVar(&configFile, "c", "config/local.json", "config file path")
 	flag.StringVar(&listen, "a", ":80", "listen port")
 	flag.StringVar(&kubeConfig, "k", "", "kube config file name")
@@ -175,29 +176,43 @@ func main() {
 	if debug {
 		log.SetDebug()
 	}
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		panic(fmt.Errorf("start watcher error: %v", err))
-	}
-	if watcher.Add(configFile) != nil {
-		panic(fmt.Errorf("watch %s error: %v", configFile, err))
-	}
 	clis, w, s, err := loadFromConfig(kubeConfig, configFile)
 	if err != nil {
 		log.Errorf("load from config file error: %v", err)
 		os.Exit(1)
 	}
 	ser := server.NewMuxServer(listen, clis, s)
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		panic(fmt.Errorf("start watcher error: %v", err))
+	}
+	if kubeConfig == "" {
+		if watcher.Add(defaultConfig) != nil {
+			log.Errorf("watch %s error: %v", configFile, err)
+		}
+	} else {
+		if watcher.Add(kubeConfig) != nil {
+			panic(fmt.Errorf("watch %s error: %v", configFile, err))
+		}
+	}
+	if watcher.Add(configFile) != nil {
+		panic(fmt.Errorf("watch %s error: %v", configFile, err))
+	}
 	go func() {
 		for {
 			select {
-			case <-watcher.Events:
+			case e := <-watcher.Events:
+				log.Infof("get file watch event: %v", e)
+				if e.Op != fsnotify.Write {
+					continue
+				}
 				clis, rw, rs, err := loadFromConfig(kubeConfig, configFile)
 				if err != nil {
 					prommonitor.ConfigReload.WithLabelValues("failed").Inc()
 					log.Errorf("reload config error: %v", err)
 					continue
 				}
+				prommonitor.Resources.Reset()
 				w.Stop()
 				w = rw
 				ser.ResetStore(rs, clis) // reset store
