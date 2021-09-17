@@ -188,39 +188,40 @@ func main() {
 	}
 	fixedWatcher, err := utils.NewFixedFileWatcher(files)
 	if err != nil {
-		panic(fmt.Errorf("create watcher error: %v", err))
-	}
-	if err := fixedWatcher.Start(); err != nil {
-		panic(fmt.Errorf("watcher start error: %v", err))
-	}
-	defer fixedWatcher.Close()
-	go func() {
-		for {
-			select {
-			case e := <-fixedWatcher.Events():
-				log.Infof("get file watcher event: %v", e)
-				switch e.Type {
-				case utils.EventTypeChanged:
-					// do reload
-				case utils.EventTypeError:
-					log.Errorf("got file watcher error type: file: %s", e.Name)
-					break
-					// do reload
-				}
-				clis, rw, rs, err := loadFromConfig(kubeConfig, configFile)
-				if err != nil {
-					prommonitor.ConfigReload.WithLabelValues("failed").Inc()
-					log.Errorf("watcher: reload config error: %v", err)
-					continue
-				}
-				prommonitor.Resources.Reset()
-				w.Stop()
-				w = rw
-				ser.ResetStore(rs, clis) // reset store
-				prommonitor.ConfigReload.WithLabelValues("success").Inc()
-				log.Infof("auto reloaded config successfully")
-			}
+		log.Errorf("create watcher error: %v", err)
+	} else {
+		if err := fixedWatcher.Start(); err != nil {
+			panic(fmt.Errorf("watcher start error: %v", err))
 		}
-	}()
+		defer fixedWatcher.Close()
+		go func() {
+			for {
+				select {
+				case e := <-fixedWatcher.Events():
+					log.Infof("get file watcher event: %v", e)
+					switch e.Type {
+					case utils.EventTypeChanged:
+						// do reload
+					case utils.EventTypeError:
+						log.Errorf("got file watcher error type: file: %s", e.Name)
+						break
+						// do reload
+					}
+					clis, rw, rs, err := loadFromConfig(kubeConfig, configFile)
+					if err != nil {
+						prommonitor.ConfigReload.WithLabelValues("failed").Inc()
+						log.Errorf("watcher: reload config error: %v", err)
+						continue
+					}
+					prommonitor.Resources.Reset()
+					w.Stop()
+					w = rw
+					ser.ResetStore(rs, clis) // reset store
+					prommonitor.ConfigReload.WithLabelValues("success").Inc()
+					log.Infof("auto reloaded config successfully")
+				}
+			}
+		}()
+	}
 	ser.Run()
 }
