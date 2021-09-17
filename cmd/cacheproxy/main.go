@@ -4,23 +4,21 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
-	"time"
-
-	"github.com/fsnotify/fsnotify"
 	"gitlab.daocloud.cn/dsm-public/common/log"
+	"gitlab.daocloud.cn/dsm-public/common/utils"
 	"gitlab.daocloud.cn/mesh/ckube/common"
 	"gitlab.daocloud.cn/mesh/ckube/server"
 	"gitlab.daocloud.cn/mesh/ckube/store"
 	"gitlab.daocloud.cn/mesh/ckube/store/memory"
 	"gitlab.daocloud.cn/mesh/ckube/utils/prommonitor"
 	"gitlab.daocloud.cn/mesh/ckube/watcher"
+	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	kubeapi "k8s.io/client-go/tools/clientcmd/api/v1"
+	"os"
+	"path"
 	"sigs.k8s.io/yaml"
 )
 
@@ -182,34 +180,37 @@ func main() {
 		os.Exit(1)
 	}
 	ser := server.NewMuxServer(listen, clis, s)
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		panic(fmt.Errorf("start watcher error: %v", err))
-	}
+	files := []string{configFile}
 	if kubeConfig == "" {
-		if watcher.Add(defaultConfig) != nil {
-			log.Errorf("watch %s error: %v", configFile, err)
-		}
+		files = append(files, defaultConfig)
 	} else {
-		if watcher.Add(kubeConfig) != nil {
-			panic(fmt.Errorf("watch %s error: %v", configFile, err))
-		}
+		files = append(files, kubeConfig)
 	}
-	if watcher.Add(configFile) != nil {
-		panic(fmt.Errorf("watch %s error: %v", configFile, err))
+	fixedWatcher, err := utils.NewFixedFileWatcher(files)
+	if err != nil {
+		panic(fmt.Errorf("create watcher error: %v", err))
 	}
+	if err := fixedWatcher.Start(); err != nil {
+		panic(fmt.Errorf("watcher start error: %v", err))
+	}
+	defer fixedWatcher.Close()
 	go func() {
 		for {
 			select {
-			case e := <-watcher.Events:
-				log.Infof("get file watch event: %v", e)
-				if e.Op != fsnotify.Write {
-					continue
+			case e := <-fixedWatcher.Events():
+				log.Infof("get file watcher event: %v", e)
+				switch e.Type {
+				case utils.EventTypeChanged:
+					// do reload
+				case utils.EventTypeError:
+					log.Errorf("got file watcher error type: file: %s", e.Name)
+					break
+					// do reload
 				}
 				clis, rw, rs, err := loadFromConfig(kubeConfig, configFile)
 				if err != nil {
 					prommonitor.ConfigReload.WithLabelValues("failed").Inc()
-					log.Errorf("reload config error: %v", err)
+					log.Errorf("watcher: reload config error: %v", err)
 					continue
 				}
 				prommonitor.Resources.Reset()
@@ -218,10 +219,7 @@ func main() {
 				ser.ResetStore(rs, clis) // reset store
 				prommonitor.ConfigReload.WithLabelValues("success").Inc()
 				log.Infof("auto reloaded config successfully")
-			case e := <-watcher.Errors:
-				log.Errorf("watch config file error: %v", e)
 			}
-			time.Sleep(time.Second * 5)
 		}
 	}()
 	ser.Run()
