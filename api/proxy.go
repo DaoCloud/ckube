@@ -165,7 +165,7 @@ func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelS
 			json.Unmarshal(rr, &paginate)
 			delete(labels.MatchLabels, constants.PaginateKey)
 		}
-		query.Set("labelSelector", labels.String())
+		query.Set("labelSelector", v1.FormatLabelSelector(labels))
 	}
 	r.URL.RawQuery = query.Encode()
 	if cs := paginate.GetClusters(); len(cs) > 0 && cluster == "" {
