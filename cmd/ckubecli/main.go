@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"gitlab.daocloud.cn/dsm-public/common/page"
+	"github.com/DaoCloud/ckube/page"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

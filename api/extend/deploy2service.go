@@ -3,11 +3,11 @@ package extend
 import (
 	"strings"
 
+	"github.com/DaoCloud/ckube/api"
+	"github.com/DaoCloud/ckube/page"
+	"github.com/DaoCloud/ckube/store"
+	"github.com/DaoCloud/ckube/utils"
 	"github.com/gorilla/mux"
-	"gitlab.daocloud.cn/dsm-public/common/page"
-	"gitlab.daocloud.cn/mesh/ckube/api"
-	"gitlab.daocloud.cn/mesh/ckube/store"
-	"gitlab.daocloud.cn/mesh/ckube/utils"
 	v1 "k8s.io/api/core/v1"
 )
 

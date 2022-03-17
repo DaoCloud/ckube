@@ -1,9 +1,9 @@
 package server
 
 import (
-	"gitlab.daocloud.cn/mesh/ckube/api"
-	"gitlab.daocloud.cn/mesh/ckube/api/extend"
-	"gitlab.daocloud.cn/mesh/ckube/utils/prommonitor"
+	"github.com/DaoCloud/ckube/api"
+	"github.com/DaoCloud/ckube/api/extend"
+	"github.com/DaoCloud/ckube/utils/prommonitor"
 )
 
 type HandleFunc func(r *api.ReqContext) interface{}

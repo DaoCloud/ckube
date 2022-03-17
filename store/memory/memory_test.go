@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/DaoCloud/ckube/common/constants"
+	"github.com/DaoCloud/ckube/page"
+	"github.com/DaoCloud/ckube/store"
 	"github.com/stretchr/testify/assert"
-	"gitlab.daocloud.cn/dsm-public/common/constants"
-	"gitlab.daocloud.cn/dsm-public/common/page"
-	"gitlab.daocloud.cn/mesh/ckube/store"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

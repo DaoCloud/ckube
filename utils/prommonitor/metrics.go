@@ -1,10 +1,10 @@
 package prommonitor
 
 import (
+	"github.com/DaoCloud/ckube/api"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"gitlab.daocloud.cn/mesh/ckube/api"
 )
 
 const (

@@ -1,13 +1,13 @@
-module gitlab.daocloud.cn/mesh/ckube
+module github.com/DaoCloud/ckube
 
 go 1.17
 
 require (
+	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gorilla/mux v1.8.0
 	github.com/prometheus/client_golang v1.7.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.6.1
-	gitlab.daocloud.cn/dsm-public/common v0.0.0-20210917060336-3a74ec4627b0
 	k8s.io/api v0.21.0
 	k8s.io/apimachinery v0.21.0
 	k8s.io/client-go v0.21.0
@@ -19,7 +19,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
-	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect

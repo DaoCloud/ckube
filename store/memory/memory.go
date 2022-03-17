@@ -3,16 +3,16 @@ package memory
 import (
 	"bytes"
 	"fmt"
-	"gitlab.daocloud.cn/mesh/ckube/utils/prommonitor"
+	"github.com/DaoCloud/ckube/utils/prommonitor"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 
-	"gitlab.daocloud.cn/dsm-public/common/constants"
-	"gitlab.daocloud.cn/dsm-public/common/log"
-	"gitlab.daocloud.cn/mesh/ckube/store"
-	"gitlab.daocloud.cn/mesh/ckube/utils"
+	"github.com/DaoCloud/ckube/common/constants"
+	"github.com/DaoCloud/ckube/log"
+	"github.com/DaoCloud/ckube/store"
+	"github.com/DaoCloud/ckube/utils"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/jsonpath"
 )

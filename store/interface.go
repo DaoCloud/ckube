@@ -1,7 +1,7 @@
 package store
 
 import (
-	"gitlab.daocloud.cn/dsm-public/common/page"
+	"github.com/DaoCloud/ckube/page"
 )
 
 type Filter func(obj Object) (bool, error)

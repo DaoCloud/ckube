@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.daocloud.cn/dsm-public/common/log"
-	"gitlab.daocloud.cn/mesh/ckube/common"
-	"gitlab.daocloud.cn/mesh/ckube/store"
+	"github.com/DaoCloud/ckube/common"
+	"github.com/DaoCloud/ckube/log"
+	"github.com/DaoCloud/ckube/store"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"

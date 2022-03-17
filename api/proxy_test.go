@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/DaoCloud/ckube/common"
+	"github.com/DaoCloud/ckube/store"
 	"github.com/stretchr/testify/assert"
-	"gitlab.daocloud.cn/mesh/ckube/common"
-	"gitlab.daocloud.cn/mesh/ckube/store"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

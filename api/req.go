@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"gitlab.daocloud.cn/mesh/ckube/store"
+	"github.com/DaoCloud/ckube/store"
 	"k8s.io/client-go/kubernetes"
 )
 
