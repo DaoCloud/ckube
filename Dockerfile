@@ -1,5 +1,5 @@
 ###### build stage ####
-FROM golang:1.14-stretch as build
+FROM golang:1.17-stretch as build
 
 ARG ARCH
 
