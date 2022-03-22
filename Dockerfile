@@ -13,7 +13,7 @@ ADD . .
 RUN go build -ldflags "-s -w" -o ./dist/cacheproxy cmd/cacheproxy/main.go
 
 
-FROM nginx:alpine
+FROM ubuntu:20.04
 
 WORKDIR /app
 
