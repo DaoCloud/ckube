@@ -166,6 +166,7 @@ func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
 						w.store.Clean(r, cluster)
 						log.Warnf("cluster(%s): watch stream(%v) closed", cluster, r)
 						ww.Stop()
+						time.Sleep(time.Second * 3)
 						break resultChan
 					}
 				case <-w.stop:
