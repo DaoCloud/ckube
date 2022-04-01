@@ -98,7 +98,7 @@ func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelS
 	var labels *v1.LabelSelector
 	var paginate page.Paginate
 	var labelSelectorStr string
-	clusterPrefix := "dsm-cluster-"
+	clusterPrefix := constants.ClusterPrefix
 	cluster := ""
 	query := r.URL.Query()
 	for k, v := range query {

@@ -10,6 +10,7 @@ const (
 	KeyTypeStr           = "str"
 	SearchPartsSep       = ';'
 	DSMClusterAnno       = "ckube.doacloud.io/cluster"
+	ClusterPrefix        = "dsm-cluster-"
 )
 
 var (
@@ -22,4 +23,5 @@ var (
 	_ = KeyTypeStr
 	_ = SearchPartsSep
 	_ = DSMClusterAnno
+	_ = ClusterPrefix
 )

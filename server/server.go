@@ -77,12 +77,15 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func NewMuxServer(listenAddr string, clusterClients map[string]kubernetes.Interface, s store.Store) Server {
+func NewMuxServer(listenAddr string, clusterClients map[string]kubernetes.Interface, s store.Store, externalRouter ...func(*mux.Router)) Server {
 	ser := muxServer{
 		clusterClients: clusterClients,
 		store:          s,
 		ListenAddr:     listenAddr,
 		router:         mux.NewRouter(),
+	}
+	for _, h := range externalRouter {
+		h(ser.router)
 	}
 	ser.registerRoutes(ser.router, routeHandles)
 	ser.router.Use(loggingMiddleware)

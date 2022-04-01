@@ -77,7 +77,7 @@ func (o *ObjType) MarshalJSON() ([]byte, error) {
 		TypeMeta:   o.TypeMeta,
 		ObjectMeta: o.ObjectMeta,
 	})
-	if string(bsm) == "{}" {
+	if string(bsm) == "{}" || string(bsm) == "null" {
 		return bso, nil
 	}
 	if string(bso) == "{}" {
