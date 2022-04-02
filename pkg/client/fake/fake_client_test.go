@@ -7,6 +7,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sync"
 	"testing"
 )
 
@@ -131,8 +132,64 @@ func TestNewFakeCKubeServer(t *testing.T) {
 				Group:       "",
 				Version:     "v1",
 				Resource:    "pods",
+				Cluster:     "c1",
 				Namespace:   "test",
 				Name:        "pod1",
+				Raw:         "{\"kind\":\"Pod\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"pod1\",\"namespace\":\"test\",\"creationTimestamp\":null},\"spec\":{\"containers\":null,\"dnsPolicy\":\"ClusterFirst\"},\"status\":{}}\n",
+			},
+		}, events)
+	})
+	t.Run("watch", func(t *testing.T) {
+		events := []Event{}
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			p := page.Paginate{}
+			p.Clusters([]string{"c1"})
+			lopts, _ := page.QueryListOptions(metav1.ListOptions{}, p)
+			w, err := cli.CoreV1().Pods("test").Watch(context.Background(), lopts)
+			assert.NoError(t, err)
+			wg.Done()
+			for {
+				select {
+				case e := <-w.ResultChan():
+					pod := e.Object.(*v1.Pod)
+					events = append(events, Event{
+						Cluster:   page.GetObjectCluster(pod),
+						Namespace: pod.Namespace,
+						Name:      pod.Name,
+					})
+				}
+			}
+		}()
+		wg.Wait()
+		coptc1, _ := page.QueryCreateOptions(metav1.CreateOptions{}, "c1")
+		_, err = cli.CoreV1().Pods("test").Create(context.Background(), &v1.Pod{
+			TypeMeta: metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "pod3",
+				Namespace: "test",
+			},
+			Spec: v1.PodSpec{
+				DNSPolicy: "ClusterFirst",
+			},
+		}, coptc1)
+		coptc2, _ := page.QueryCreateOptions(metav1.CreateOptions{}, "c2")
+		_, err = cli.CoreV1().Pods("test").Create(context.Background(), &v1.Pod{
+			TypeMeta: metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "pod4",
+				Namespace: "test",
+			},
+			Spec: v1.PodSpec{
+				DNSPolicy: "ClusterFirst",
+			},
+		}, coptc2)
+		assert.NoError(t, err)
+		assert.Equal(t, []Event{
+			{
+				Namespace: "test",
+				Name:      "pod3",
 			},
 		}, events)
 	})
