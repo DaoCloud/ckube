@@ -142,6 +142,7 @@ func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
 		} else {
 			url = fmt.Sprintf("/apis/%s/%s/%s?watch=true", r.Group, r.Version, r.Resource)
 		}
+		first := true
 		ww, err := rt.Get().RequestURI(url).Timeout(time.Hour).Watch(ctx)
 		if err != nil {
 			log.Errorf("cluster(%s): create watcher for %s error: %v", cluster, url, err)
@@ -151,6 +152,12 @@ func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
 			for {
 				select {
 				case rr, open := <-ww.ResultChan():
+					if first {
+						// only clean resource at the first time
+						// to avoid the resources gone after server break.
+						w.store.Clean(r, cluster)
+						first = false
+					}
 					if open {
 						switch rr.Type {
 						case watch.Added:
@@ -163,7 +170,6 @@ func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
 							log.Warnf("cluster(%s): watch stream(%v) error: %v", cluster, r, rr.Object)
 						}
 					} else {
-						w.store.Clean(r, cluster)
 						log.Warnf("cluster(%s): watch stream(%v) closed", cluster, r)
 						ww.Stop()
 						time.Sleep(time.Second * 3)
