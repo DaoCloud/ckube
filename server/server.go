@@ -68,6 +68,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(&sw, r)
 		log.AccessLog.WithFields(logrus.Fields{
+			"method":         r.Method,
 			"type":           "access",
 			"path":           r.RequestURI,
 			"req_time":       time.Now().Sub(st),
