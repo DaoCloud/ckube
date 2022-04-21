@@ -135,6 +135,11 @@ func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	rt, _ := rest.RESTClientFor(&config)
 	for {
+		select {
+		case <-w.stop:
+			return
+		default:
+		}
 		ctx, calcel := context.WithTimeout(context.Background(), time.Hour)
 		url := ""
 		if r.Group == "" {
@@ -146,7 +151,7 @@ func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
 		ww, err := rt.Get().RequestURI(url).Timeout(time.Hour).Watch(ctx)
 		if err != nil {
 			log.Errorf("cluster(%s): create watcher for %s error: %v", cluster, url, err)
-			time.Sleep(time.Second * 3)
+			time.Sleep(time.Second * 15)
 		} else {
 		resultChan:
 			for {
@@ -177,7 +182,7 @@ func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
 					}
 				case <-w.stop:
 					ww.Stop()
-					break resultChan
+					return
 				}
 			}
 		}
