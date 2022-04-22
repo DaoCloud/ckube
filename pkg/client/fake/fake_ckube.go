@@ -57,24 +57,32 @@ func NewFakeCKubeServer(listenAddr string, config string) (CkubeServer, error) {
 		})
 	}
 	m := memory.NewMemoryStore(indexConf)
+	addr := "http://" + func() string {
+		parts := strings.Split(listenAddr, ":")
+		if parts[0] == "" {
+			return listenAddr
+		}
+		return "127.0.0.1:" + parts[1]
+	}()
 	s := fakeCkubeServer{
 		store:     m,
 		eventChan: make(chan Event),
 		kubeConfig: &rest.Config{
-			Host: "http://" + func() string {
-				parts := strings.Split(listenAddr, ":")
-				if parts[0] == "" {
-					return listenAddr
-				}
-				return "127.0.0.1:" + parts[1]
-			}(),
+			Host: addr,
 		},
 		watchChanMap: make(map[string]chan Event),
 	}
 	ser := server.NewMuxServer(listenAddr, nil, m, s.registerFakeRoute)
 	s.ser = ser
 	go ser.Run()
-	return &s, nil
+	for i := 0; i < 5; i++ {
+		time.Sleep(time.Millisecond * 100 * time.Duration(1<<i))
+		_, err := http.Get(addr + "/metrics")
+		if err == nil {
+			return &s, nil
+		}
+	}
+	return nil, fmt.Errorf("wait for server start timeout")
 }
 
 func NewFakeCKubeServerWithConfigPath(listenAddr string, cfgPath string) (CkubeServer, error) {
