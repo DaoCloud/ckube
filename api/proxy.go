@@ -338,7 +338,7 @@ func serverPrint(items []interface{}) interface{} {
 	indexMap := map[string]int{}
 	for i, item := range items {
 		if oo, ok := item.(v1.Object); ok {
-			indexesStr := oo.GetAnnotations()["anno.dsm.daocloud.io/indexes"]
+			indexesStr := oo.GetAnnotations()[constants.IndexAnno]
 			if len(indexesStr) == 0 {
 				continue
 			}

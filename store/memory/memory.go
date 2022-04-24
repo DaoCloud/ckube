@@ -357,7 +357,7 @@ func (m *memoryStore) buildResourceWithIndex(gvr store.GroupVersionResource, clu
 		}
 		anno := oo.GetAnnotations()
 		index, _ := json.Marshal(s.Index)
-		anno["anno.dsm.daocloud.io/indexes"] = string(index) // todo constants
+		anno[constants.IndexAnno] = string(index) // todo constants
 		oo.SetAnnotations(anno)
 		s.Obj = oo
 	}

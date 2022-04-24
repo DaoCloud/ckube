@@ -11,6 +11,7 @@ const (
 	SearchPartsSep       = ';'
 	DSMClusterAnno       = "ckube.doacloud.io/cluster"
 	ClusterPrefix        = "dsm-cluster-"
+	IndexAnno            = "ckube.daocloud.io/indexes"
 )
 
 var (
@@ -24,4 +25,5 @@ var (
 	_ = SearchPartsSep
 	_ = DSMClusterAnno
 	_ = ClusterPrefix
+	_ = IndexAnno
 )

@@ -79,6 +79,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "test",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test1\",\"namespace\":\"test\",\"uid\":\"test\"}",
 						},
 					},
 				}),
@@ -117,6 +118,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "test",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test2\",\"namespace\":\"test\",\"uid\":\"test\"}",
 						},
 					},
 				}),
@@ -160,6 +162,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "test",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"hello\",\"namespace\":\"test\",\"uid\":\"test\"}",
 						},
 					},
 				}, &v1.Pod{
@@ -169,6 +172,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "test",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"llo\",\"namespace\":\"test\",\"uid\":\"test\"}",
 						},
 					},
 				}),
@@ -212,6 +216,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "test",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"llo\",\"namespace\":\"test\",\"uid\":\"test\"}",
 						},
 					},
 				}),
@@ -288,6 +293,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "test",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"hello\",\"namespace\":\"test\",\"uid\":\"test\"}",
 						},
 					},
 				}, &v1.Pod{
@@ -297,6 +303,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "test",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"l1lo\",\"namespace\":\"test\",\"uid\":\"test\"}",
 						},
 					},
 				}),
@@ -394,6 +401,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "1",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test5\",\"namespace\":\"test\",\"uid\":\"1\"}",
 						},
 					},
 				}, &v1.Pod{
@@ -403,6 +411,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "2",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test1\",\"namespace\":\"test\",\"uid\":\"2\"}",
 						},
 					},
 				}, &v1.Pod{
@@ -412,6 +421,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "3",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test3\",\"namespace\":\"test\",\"uid\":\"3\"}",
 						},
 					},
 				}),
@@ -455,6 +465,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "3",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test3\",\"namespace\":\"test\",\"uid\":\"3\"}",
 						},
 					},
 				}, &v1.Pod{
@@ -464,6 +475,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "2",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test1\",\"namespace\":\"test\",\"uid\":\"2\"}",
 						},
 					},
 				}, &v1.Pod{
@@ -473,6 +485,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "1",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test5\",\"namespace\":\"test\",\"uid\":\"1\"}",
 						},
 					},
 				}),
@@ -543,6 +556,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "3",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test3\",\"namespace\":\"test\",\"uid\":\"3\"}",
 						},
 					},
 				}, &v1.Pod{
@@ -552,6 +566,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "2",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test1\",\"namespace\":\"test\",\"uid\":\"2\"}",
 						},
 					},
 				}, &v1.Pod{
@@ -561,6 +576,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "1",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test5\",\"namespace\":\"test1\",\"uid\":\"1\"}",
 						},
 					},
 				}),
@@ -604,6 +620,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "2",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test5\",\"namespace\":\"test\",\"uid\":\"2\"}",
 						},
 					},
 				}, &v1.Pod{
@@ -613,6 +630,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "3",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test3\",\"namespace\":\"test\",\"uid\":\"3\"}",
 						},
 					},
 				}, &v1.Pod{
@@ -622,6 +640,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "11",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test1\",\"namespace\":\"test\",\"uid\":\"11\"}",
 						},
 					},
 				}),
@@ -692,6 +711,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "3",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test3\",\"namespace\":\"test\",\"uid\":\"3\"}",
 						},
 					},
 				}, &v1.Pod{
@@ -701,6 +721,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "11",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test1\",\"namespace\":\"test\",\"uid\":\"11\"}",
 						},
 					},
 				}, &v1.Pod{
@@ -710,6 +731,7 @@ func TestMemoryStore_Query(t *testing.T) {
 						UID:       "20",
 						Annotations: map[string]string{
 							constants.DSMClusterAnno: "",
+							constants.IndexAnno:      "{\"cluster\":\"\",\"is_deleted\":\"false\",\"name\":\"test13\",\"namespace\":\"test1\",\"uid\":\"20\"}",
 						},
 					},
 				}),
