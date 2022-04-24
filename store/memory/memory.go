@@ -2,6 +2,7 @@ package memory
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/DaoCloud/ckube/utils/prommonitor"
 	"sort"
@@ -329,24 +330,6 @@ func (m *memoryStore) buildResourceWithIndex(gvr store.GroupVersionResource, clu
 		}
 		s.Index[k] = w.String()
 	}
-	if oo, ok := obj.(v1.Object); ok {
-		if len(oo.GetAnnotations()) == 0 {
-			oo.SetAnnotations(map[string]string{
-				constants.DSMClusterAnno: cluster,
-			})
-		} else {
-			anno := oo.GetAnnotations()
-			anno[constants.DSMClusterAnno] = cluster
-			oo.SetAnnotations(anno)
-		}
-		// BUILD-IN Index: deletion
-		if oo.GetDeletionTimestamp() != nil {
-			s.Index["is_deleted"] = "true"
-		} else {
-			s.Index["is_deleted"] = "false"
-		}
-		s.Obj = oo
-	}
 	namespace := ""
 	name := ""
 	if ns, ok := s.Index["namespace"]; ok {
@@ -356,6 +339,28 @@ func (m *memoryStore) buildResourceWithIndex(gvr store.GroupVersionResource, clu
 		name = n
 	}
 	s.Index["cluster"] = cluster
+	if oo, ok := obj.(v1.Object); ok {
+		// BUILD-IN Index: deletion
+		if oo.GetDeletionTimestamp() != nil {
+			s.Index["is_deleted"] = "true"
+		} else {
+			s.Index["is_deleted"] = "false"
+		}
+		if len(oo.GetAnnotations()) == 0 {
+			oo.SetAnnotations(map[string]string{
+				constants.DSMClusterAnno: cluster,
+			})
+		} else {
+			anno := oo.GetAnnotations()
+			anno[constants.DSMClusterAnno] = cluster
+			oo.SetAnnotations(anno)
+		}
+		anno := oo.GetAnnotations()
+		index, _ := json.Marshal(s.Index)
+		anno["anno.dsm.daocloud.io/indexes"] = string(index) // todo constants
+		oo.SetAnnotations(anno)
+		s.Obj = oo
+	}
 	log.Debugf("memory store: gvr: %v, resources %s/%s, index: %v", gvr, namespace, name, s.Index)
 	return namespace, name, s
 }

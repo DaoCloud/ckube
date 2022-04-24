@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -313,6 +314,9 @@ func Proxy(r *ReqContext) interface{} {
 			remainCount = 0
 		}
 	}
+	if strings.Contains(r.Request.Header.Get("accept"), "application/json;as=Table") {
+		return serverPrint(items)
+	}
 	return map[string]interface{}{
 		"apiVersion": apiVersion,
 		"kind":       common.GetGVRKind(gvr.Group, gvr.Version, gvr.Resource),
@@ -322,6 +326,72 @@ func Proxy(r *ReqContext) interface{} {
 		},
 		"items": items,
 	}
+}
+
+func serverPrint(items []interface{}) interface{} {
+	table := v1.Table{
+		TypeMeta: v1.TypeMeta{
+			Kind:       "Table",
+			APIVersion: "meta.k8s.io/v1",
+		},
+	}
+	indexMap := map[string]int{}
+	for i, item := range items {
+		if oo, ok := item.(v1.Object); ok {
+			indexesStr := oo.GetAnnotations()["anno.dsm.daocloud.io/indexes"]
+			if len(indexesStr) == 0 {
+				continue
+			}
+			indexes := map[string]string{}
+			json.Unmarshal([]byte(indexesStr), &indexes)
+			if i == 0 {
+				commonCols := []string{"cluster", "namespace", "name"}
+				if _, ok := indexes["namespace"]; !ok {
+					commonCols = []string{"cluster", "name"}
+				}
+				cols := []string{}
+				for k := range indexes {
+					switch k {
+					case "cluster":
+					case "namespace":
+					case "name":
+						continue
+					default:
+						cols = append(cols, k)
+					}
+				}
+				sort.Slice(cols, func(i, j int) bool {
+					return cols[i] < cols[j]
+				})
+				cols = append(commonCols, cols...)
+				for j, c := range cols {
+					table.ColumnDefinitions = append(table.ColumnDefinitions, v1.TableColumnDefinition{
+						Name: c,
+						Type: "string",
+						Priority: func() int32 {
+							switch c {
+							case "cluster":
+								return 1
+							case "is_deleted", "labels", "created_at":
+								return 2
+							}
+							return 0
+						}(),
+					})
+					indexMap[c] = j
+				}
+			}
+			cells := make([]interface{}, len(indexMap))
+			for k, v := range indexes {
+				cells[indexMap[k]] = v
+			}
+			raw := v1.TableRow{
+				Cells: cells,
+			}
+			table.Rows = append(table.Rows, raw)
+		}
+	}
+	return table
 }
 
 func isWatchRequest(r *http.Request) bool {
