@@ -97,6 +97,26 @@ func (s *fakeCkubeServer) Stop() {
 	s.ser.Stop()
 }
 
+func (s *fakeCkubeServer) Clean() {
+	indexConf := map[store.GroupVersionResource]map[string]string{}
+	storeGVRConfig := []store.GroupVersionResource{}
+	for _, proxy := range common.GetConfig().Proxies {
+		indexConf[store.GroupVersionResource{
+			Group:    proxy.Group,
+			Version:  proxy.Version,
+			Resource: proxy.Resource,
+		}] = proxy.Index
+		storeGVRConfig = append(storeGVRConfig, store.GroupVersionResource{
+			Group:    proxy.Group,
+			Version:  proxy.Version,
+			Resource: proxy.Resource,
+		})
+	}
+	m := memory.NewMemoryStore(indexConf)
+	s.ser.ResetStore(m, nil)
+	s.store = m
+}
+
 func (s *fakeCkubeServer) Events() <-chan Event {
 	return s.eventChan
 }
@@ -138,6 +158,11 @@ func (s *fakeCkubeServer) registerFakeRoute(r *mux.Router) {
 	} {
 		r.Path(p).Methods("GET").HandlerFunc(s.watch)
 	}
+	r.Path("/version").Methods("GET").HandlerFunc(version)
+	r.Path("/api").Methods("GET").HandlerFunc(api)
+	r.Path("/apis").Methods("GET").HandlerFunc(apis)
+	r.Path("/apis/{group}/{version}").Methods("GET").HandlerFunc(resources)
+	r.Path("/api/{version}").Methods("GET").HandlerFunc(resources)
 }
 
 func jsonResp(writer http.ResponseWriter, status int, v interface{}) {
@@ -157,6 +182,88 @@ type wh struct {
 
 func (w *wh) ServeHTTP(writer http.ResponseWriter, r *http.Request) {
 	w.s.watch(writer, r)
+}
+
+func resources(writer http.ResponseWriter, r *http.Request) {
+	group := mux.Vars(r)["group"]
+	version := mux.Vars(r)["version"]
+	res := metav1.APIResourceList{}
+	if group == "" {
+		res.GroupVersion = version
+	} else {
+		res.GroupVersion = fmt.Sprintf("%s/%s", group, version)
+	}
+	for _, p := range common.GetConfig().Proxies {
+		res.APIResources = append(res.APIResources, metav1.APIResource{
+			Name:         p.Resource,
+			SingularName: "",
+			Namespaced:   true,
+			Group:        group,
+			Version:      version,
+			Kind:         strings.TrimSuffix(p.ListKind, "List"),
+			Verbs: metav1.Verbs{
+				"create",
+				"delete",
+				"deletecollection",
+				"get",
+				"list",
+				"patch",
+				"update",
+				"watch",
+			},
+		})
+	}
+	jsonResp(writer, 200, res)
+}
+
+func api(writer http.ResponseWriter, r *http.Request) {
+	a := metav1.APIVersions{
+		Versions: []string{"v1"},
+	}
+	jsonResp(writer, 200, a)
+}
+
+func apis(writer http.ResponseWriter, r *http.Request) {
+	a := metav1.APIGroupList{}
+
+	for _, p := range common.GetConfig().Proxies {
+		find := false
+		for _, g := range a.Groups {
+			if g.Name == p.Group {
+				g.Versions = append(g.Versions, metav1.GroupVersionForDiscovery{
+					GroupVersion: fmt.Sprintf("%s/%s", p.Group, p.Version),
+					Version:      p.Version,
+				})
+				find = true
+				break
+			}
+		}
+		if !find {
+			a.Groups = append(a.Groups, metav1.APIGroup{
+				Name:                       p.Group,
+				Versions:                   nil,
+				PreferredVersion:           metav1.GroupVersionForDiscovery{},
+				ServerAddressByClientCIDRs: nil,
+			})
+		}
+	}
+	jsonResp(writer, 200, a)
+}
+
+func version(writer http.ResponseWriter, r *http.Request) {
+	// todo fixme
+	v := map[string]string{
+		"major":        "1",
+		"minor":        "23",
+		"gitVersion":   "v1.23.5",
+		"gitCommit":    "c285e781331a3785a7f436042c65c5641ce8a9e9",
+		"gitTreeState": "clean",
+		"buildDate":    "2022-03-16T15:52:18Z",
+		"goVersion":    "go1.17.8",
+		"compiler":     "gc",
+		"platform":     "linux/amd64",
+	}
+	jsonResp(writer, 200, v)
 }
 
 func (s *fakeCkubeServer) watch(writer http.ResponseWriter, r *http.Request) {

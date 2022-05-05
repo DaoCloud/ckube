@@ -26,4 +26,5 @@ type CkubeServer interface {
 	Events() <-chan Event
 	GetKubeConfig() *rest.Config
 	Stop()
+	Clean()
 }
