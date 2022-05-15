@@ -411,6 +411,11 @@ func isWatchRequest(r *http.Request) bool {
 func proxyPassWatch(r *ReqContext, cluster string) interface{} {
 	q := r.Request.URL.Query()
 	q.Set("timeout", "30m")
+	if v, ok := q["labelSelector"]; ok {
+		if len(v) == 1 && v[0] == "<none>" {
+			delete(q, "labelSelector")
+		}
+	}
 	r.Request.URL.RawQuery = q.Encode()
 	u := r.Request.URL.String()
 	log.Debugf("proxyPass url: %s", u)
