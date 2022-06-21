@@ -14,18 +14,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DaoCloud/ckube/common"
-	"github.com/DaoCloud/ckube/common/constants"
-	"github.com/DaoCloud/ckube/kube"
-	"github.com/DaoCloud/ckube/log"
-	"github.com/DaoCloud/ckube/page"
-	"github.com/DaoCloud/ckube/store"
 	"github.com/gorilla/mux"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8labels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+
+	"github.com/DaoCloud/ckube/common"
+	"github.com/DaoCloud/ckube/common/constants"
+	"github.com/DaoCloud/ckube/kube"
+	"github.com/DaoCloud/ckube/log"
+	"github.com/DaoCloud/ckube/page"
+	"github.com/DaoCloud/ckube/store"
 )
 
 func getGVRFromReq(req *http.Request) store.GroupVersionResource {
@@ -100,12 +101,14 @@ func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelS
 	var paginate page.Paginate
 	var labelSelectorStr string
 	clusterPrefix := constants.ClusterPrefix
-	cluster := ""
+	cluster := common.GetConfig().DefaultCluster
 	query := r.URL.Query()
 	for k, v := range query {
 		switch k {
 		case "labelSelector": // For List options
 			labelSelectorStr = v[0]
+		case "cluster":
+			cluster = v[0]
 		case "fieldManager", "resourceVersion": // For Get Create Patch Update actions.
 			if strings.HasPrefix(v[0], clusterPrefix) {
 				cluster = v[0][len(clusterPrefix):]
@@ -176,12 +179,12 @@ func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelS
 }
 
 func Proxy(r *ReqContext) interface{} {
-	//version := mux.Vars(r.Request)["version"]
+	// version := mux.Vars(r.Request)["version"]
 	namespace := mux.Vars(r.Request)["namespace"]
 	resourceName := mux.Vars(r.Request)["resource"]
 	paginate, labels, cluster, err := parsePaginateAndLabelsAndClean(r.Request)
 	if err != nil {
-		return proxyPass(r, common.GetConfig().DefaultCluster)
+		return proxyPass(r, cluster)
 	}
 	if cluster == "" {
 		cluster = common.GetConfig().DefaultCluster
@@ -472,11 +475,11 @@ func getRequest(r *ReqContext, cluster string, timeout time.Duration) *rest.Requ
 		log.Errorf("unexpected method: %s", r.Request.Method)
 		return nil
 	}
-	//for k, v := range r.Request.Header {
+	// for k, v := range r.Request.Header {
 	//	if len(v) > 0 {
 	//		req = req.SetHeader(k, v[0])
 	//	}
-	//}
+	// }
 	req = req.Body(r.Request.Body)
 	return req
 }

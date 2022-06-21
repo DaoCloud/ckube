@@ -44,6 +44,13 @@ var (
 			successStatus: 200,
 		},
 		{
+			path:          "/custom/v1/clusters/{cluster}/namespaces/{namespace}/deployments/{deployment}/services",
+			method:        "GET",
+			handler:       extend.Deploy2Service,
+			authRequired:  true,
+			successStatus: 200,
+		},
+		{
 			path:          "/apis/{group}/{version}/namespaces/{namespace}/{resourceType}",
 			method:        "GET",
 			handler:       api.Proxy,

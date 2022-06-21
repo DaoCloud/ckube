@@ -3,15 +3,18 @@ package extend
 import (
 	"strings"
 
+	"github.com/gorilla/mux"
+	v1 "k8s.io/api/core/v1"
+
 	"github.com/DaoCloud/ckube/api"
+	"github.com/DaoCloud/ckube/common"
 	"github.com/DaoCloud/ckube/page"
 	"github.com/DaoCloud/ckube/store"
 	"github.com/DaoCloud/ckube/utils"
-	"github.com/gorilla/mux"
-	v1 "k8s.io/api/core/v1"
 )
 
 func Deploy2Service(r *api.ReqContext) interface{} {
+	cluster := mux.Vars(r.Request)["cluster"]
 	ns := mux.Vars(r.Request)["namespace"]
 	dep := mux.Vars(r.Request)["deployment"]
 	services := []*v1.Service{}
@@ -25,11 +28,14 @@ func Deploy2Service(r *api.ReqContext) interface{} {
 		Version:  "v1",
 		Resource: "services",
 	}
+	if cluster == "" {
+		cluster = common.GetConfig().DefaultCluster
+	}
+	p := page.Paginate{Search: "name=" + dep}
+	p.Clusters([]string{cluster})
 	res := r.Store.Query(podGvr, store.Query{
 		Namespace: ns,
-		Paginate: page.Paginate{
-			Search: "name=" + dep,
-		},
+		Paginate:  p,
 	})
 	if res.Error != nil {
 		return res.Error
@@ -44,9 +50,11 @@ func Deploy2Service(r *api.ReqContext) interface{} {
 			}
 		}
 	}
+	p = page.Paginate{}
+	p.Clusters([]string{cluster})
 	res = r.Store.Query(svcGvr, store.Query{
 		Namespace: ns,
-		Paginate:  page.Paginate{},
+		Paginate:  p,
 	})
 	if res.Error != nil {
 		return res.Error
