@@ -5,12 +5,15 @@ import (
 
 	"github.com/gorilla/mux"
 	v1 "k8s.io/api/core/v1"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/json"
 
 	"github.com/DaoCloud/ckube/api"
 	"github.com/DaoCloud/ckube/common"
 	"github.com/DaoCloud/ckube/page"
 	"github.com/DaoCloud/ckube/store"
 	"github.com/DaoCloud/ckube/utils"
+	"github.com/DaoCloud/ckube/watcher"
 )
 
 func Deploy2Service(r *api.ReqContext) interface{} {
@@ -42,10 +45,10 @@ func Deploy2Service(r *api.ReqContext) interface{} {
 	}
 	var labels map[string]string
 	for _, podIf := range res.Items {
-		if pod, ok := podIf.(*v1.Pod); ok {
+		if pod, ok := podIf.(v12.Object); ok {
 			depName := getDeploymentName(pod)
 			if depName != "" {
-				labels = pod.Labels
+				labels = pod.GetLabels()
 				break
 			}
 		}
@@ -60,20 +63,25 @@ func Deploy2Service(r *api.ReqContext) interface{} {
 		return res.Error
 	}
 	for _, svcIf := range res.Items {
-		if svc, ok := svcIf.(*v1.Service); ok {
-			if svc.Spec.Selector != nil && utils.IsSubsetOf(svc.Spec.Selector, labels) {
-				services = append(services, svc)
-			}
+		svc := &v1.Service{}
+		if s, ok := svcIf.(*watcher.ObjType); ok {
+			bs, _ := json.Marshal(s)
+			json.Unmarshal(bs, svc)
+		} else {
+			svc = svcIf.(*v1.Service)
+		}
+		if svc.Spec.Selector != nil && utils.IsSubsetOf(svc.Spec.Selector, labels) {
+			services = append(services, svc)
 		}
 	}
 	return services
 }
 
-func getDeploymentName(pod *v1.Pod) string {
-	if len(pod.OwnerReferences) == 0 || pod.OwnerReferences[0].Kind != "ReplicaSet" {
+func getDeploymentName(pod v12.Object) string {
+	if len(pod.GetOwnerReferences()) == 0 || pod.GetOwnerReferences()[0].Kind != "ReplicaSet" {
 		return ""
 	} else {
-		parts := strings.Split(pod.OwnerReferences[0].Name, "-")
+		parts := strings.Split(pod.GetOwnerReferences()[0].Name, "-")
 		return strings.Join(parts[:len(parts)-1], "-")
 	}
 }

@@ -2,13 +2,17 @@ package fake
 
 import (
 	"context"
-	"github.com/DaoCloud/ckube/page"
+	"encoding/json"
+	"fmt"
+	"sync"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"sync"
-	"testing"
+
+	"github.com/DaoCloud/ckube/page"
 )
 
 func TestNewFakeCKubeServer(t *testing.T) {
@@ -20,6 +24,18 @@ func TestNewFakeCKubeServer(t *testing.T) {
       "version": "v1",
       "resource": "pods",
       "list_kind": "PodList",
+      "index": {
+        "namespace": "{.metadata.namespace}",
+        "name": "{.metadata.name}",
+        "labels": "{.metadata.labels}",
+        "created_at": "{.metadata.creationTimestamp}"
+      }
+    },
+    {
+      "group": "",
+      "version": "v1",
+      "resource": "services",
+      "list_kind": "ServiceList",
       "index": {
         "namespace": "{.metadata.namespace}",
         "name": "{.metadata.name}",
@@ -192,5 +208,54 @@ func TestNewFakeCKubeServer(t *testing.T) {
 				Name:      "pod3",
 			},
 		}, events)
+	})
+	t.Run("custom api", func(t *testing.T) {
+		cli.CoreV1().Pods("test").Create(context.Background(), &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-xxxx-asd",
+				Namespace: "test",
+				Labels: map[string]string{
+					"app": "test",
+				},
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						Kind: "ReplicaSet",
+						Name: "test-xxxx",
+					},
+				},
+			},
+		}, metav1.CreateOptions{})
+		cli.CoreV1().Services("test").Create(context.Background(), &v1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-svc",
+				Namespace: "test",
+				Labels: map[string]string{
+					"app": "test",
+				},
+			},
+			Spec: v1.ServiceSpec{
+				Ports: []v1.ServicePort{
+					{
+						Port: 20880,
+					},
+				},
+				Selector: map[string]string{
+					"app": "test",
+				},
+				ClusterIP: "1.1.1.1",
+			},
+		}, metav1.CreateOptions{})
+		bs, err := cli.Discovery().RESTClient().
+			Get().
+			RequestURI(fmt.Sprintf("/custom/v1/namespaces/%s/deployments/%s/services",
+				// m.Cluster,
+				"test",
+				"test")).
+			DoRaw(context.Background())
+		assert.NoError(t, err)
+		svcs := make([]v1.Service, 0)
+		err = json.Unmarshal(bs, &svcs)
+		assert.NoError(t, err)
+		assert.Len(t, svcs, 1)
 	})
 }

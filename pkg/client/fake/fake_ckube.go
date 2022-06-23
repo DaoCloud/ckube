@@ -5,6 +5,17 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/gorilla/mux"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
+
 	"github.com/DaoCloud/ckube/common"
 	"github.com/DaoCloud/ckube/common/constants"
 	"github.com/DaoCloud/ckube/kube"
@@ -14,15 +25,6 @@ import (
 	"github.com/DaoCloud/ckube/store"
 	"github.com/DaoCloud/ckube/store/memory"
 	"github.com/DaoCloud/ckube/watcher"
-	"github.com/gorilla/mux"
-	"io"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/rest"
-	"net/http"
-	"os"
-	"strings"
-	"sync"
-	"time"
 )
 
 type fakeCkubeServer struct {
