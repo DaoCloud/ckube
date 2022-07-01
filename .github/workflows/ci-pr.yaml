@@ -19,7 +19,7 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: golangci/golangci-lint-action@v2
         with:
-          version: v1.29
+          version: v1.46.2
   go-unit-test:
     runs-on: ubuntu-20.04
     needs: [style-check]
