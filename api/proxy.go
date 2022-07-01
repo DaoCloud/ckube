@@ -101,7 +101,7 @@ func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelS
 	var paginate page.Paginate
 	var labelSelectorStr string
 	clusterPrefix := constants.ClusterPrefix
-	cluster := common.GetConfig().DefaultCluster
+	cluster := ""
 	query := r.URL.Query()
 	for k, v := range query {
 		switch k {
@@ -169,11 +169,17 @@ func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelS
 			json.Unmarshal(rr, &paginate)
 			delete(labels.MatchLabels, constants.PaginateKey)
 		}
-		query.Set("labelSelector", v1.FormatLabelSelector(labels))
+		if len(labels.MatchLabels) != 0 || len(labels.MatchExpressions) != 0 {
+			// if labelSelectorStr is empty, v1.FormatLabelSelector will return "<none>", so we should not use it.
+			query.Set("labelSelector", v1.FormatLabelSelector(labels))
+		}
 	}
 	r.URL.RawQuery = query.Encode()
 	if cs := paginate.GetClusters(); len(cs) > 0 && cluster == "" {
 		cluster = cs[0]
+	}
+	if cluster == "" {
+		cluster = common.GetConfig().DefaultCluster
 	}
 	return &paginate, labels, cluster, nil
 }
@@ -182,6 +188,7 @@ func Proxy(r *ReqContext) interface{} {
 	// version := mux.Vars(r.Request)["version"]
 	namespace := mux.Vars(r.Request)["namespace"]
 	resourceName := mux.Vars(r.Request)["resource"]
+	gvr := getGVRFromReq(r.Request)
 	paginate, labels, cluster, err := parsePaginateAndLabelsAndClean(r.Request)
 	if err != nil {
 		return proxyPass(r, cluster)
@@ -189,7 +196,6 @@ func Proxy(r *ReqContext) interface{} {
 	if cluster == "" {
 		cluster = common.GetConfig().DefaultCluster
 	}
-	gvr := getGVRFromReq(r.Request)
 	for k, v := range r.Request.URL.Query() {
 		switch k {
 		case "labelSelector":
