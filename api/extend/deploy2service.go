@@ -35,7 +35,7 @@ func Deploy2Service(r *api.ReqContext) interface{} {
 		cluster = common.GetConfig().DefaultCluster
 	}
 	p := page.Paginate{Search: "name=" + dep}
-	p.Clusters([]string{cluster})
+	_ = p.Clusters([]string{cluster})
 	res := r.Store.Query(podGvr, store.Query{
 		Namespace: ns,
 		Paginate:  p,
@@ -54,7 +54,7 @@ func Deploy2Service(r *api.ReqContext) interface{} {
 		}
 	}
 	p = page.Paginate{}
-	p.Clusters([]string{cluster})
+	_ = p.Clusters([]string{cluster})
 	res = r.Store.Query(svcGvr, store.Query{
 		Namespace: ns,
 		Paginate:  p,
@@ -66,7 +66,7 @@ func Deploy2Service(r *api.ReqContext) interface{} {
 		svc := &v1.Service{}
 		if s, ok := svcIf.(*watcher.ObjType); ok {
 			bs, _ := json.Marshal(s)
-			json.Unmarshal(bs, svc)
+			_ = json.Unmarshal(bs, svc)
 		} else {
 			svc = svcIf.(*v1.Service)
 		}

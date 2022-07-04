@@ -1,12 +1,13 @@
 package utils
 
 import (
-	"github.com/DaoCloud/ckube/log"
-	"github.com/fsnotify/fsnotify"
 	"io"
 	"os"
-	"sync"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
+
+	"github.com/DaoCloud/ckube/log"
 )
 
 type FixedFileWatcher interface {
@@ -29,7 +30,6 @@ const (
 
 type fixedFileWatcher struct {
 	files     []string
-	mux       sync.RWMutex
 	fswatcher *fsnotify.Watcher
 	events    chan Event
 }
@@ -65,7 +65,7 @@ func (w *fixedFileWatcher) Start() error {
 		}
 	}
 	go func() {
-		for {
+		for { // nolint:gosimple
 			select {
 			case e, open := <-w.fswatcher.Events:
 				if !open {
@@ -79,7 +79,7 @@ func (w *fixedFileWatcher) Start() error {
 				case fsnotify.Remove:
 					// 在 Kubernetes 里面，当挂载 ConfigMap 的时候，如果发生文件重新，Kubernetes 会首先删除这个文件
 					// 再重新创建，所以我们应该在删除之后重新建立 watcher。
-					w.fswatcher.Remove(e.Name)
+					_ = w.fswatcher.Remove(e.Name)
 					time.Sleep(time.Second * 2)
 					// 等待一定时间之后重新加入 watcher 队列
 					err := w.fswatcher.Add(e.Name)

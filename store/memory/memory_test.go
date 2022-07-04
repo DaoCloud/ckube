@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/DaoCloud/ckube/common/constants"
-	"github.com/DaoCloud/ckube/page"
-	"github.com/DaoCloud/ckube/store"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/DaoCloud/ckube/common/constants"
+	"github.com/DaoCloud/ckube/page"
+	"github.com/DaoCloud/ckube/store"
 )
 
 var podsGVR = store.GroupVersionResource{
@@ -743,7 +744,7 @@ func TestMemoryStore_Query(t *testing.T) {
 		t.Run(fmt.Sprintf("%d-%s", i, c.name), func(t *testing.T) {
 			s := NewMemoryStore(testIndexConf)
 			for _, r := range c.resources {
-				s.OnResourceAdded(c.gvr, "", r)
+				_ = s.OnResourceAdded(c.gvr, "", r)
 			}
 			res := s.Query(c.gvr, c.query)
 			assert.Equal(t, c.res, res)

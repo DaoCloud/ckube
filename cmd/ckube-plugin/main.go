@@ -1,12 +1,14 @@
 package main
 
 import (
-	"github.com/DaoCloud/ckube/log"
-	"github.com/DaoCloud/ckube/page"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"os/exec"
 	"strings"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DaoCloud/ckube/log"
+	"github.com/DaoCloud/ckube/page"
 )
 
 const (
@@ -28,7 +30,7 @@ func main() {
 			typ = get
 		case "create":
 			typ = create
-			//case "delete":
+			// case "delete":
 			//	typ = del
 		}
 		if a == "--clusters" {
@@ -57,7 +59,7 @@ func main() {
 		switch typ {
 		case get:
 			p := page.Paginate{}
-			p.Clusters(cs)
+			_ = p.Clusters(cs)
 			selector := ""
 			if selectorPos != 0 {
 				selector = args[selectorPos]
@@ -76,15 +78,15 @@ func main() {
 				os.Exit(2)
 			}
 			p := page.Paginate{}
-			p.Clusters(cs)
+			_ = p.Clusters(cs)
 			o, _ := page.QueryCreateOptions(metav1.CreateOptions{}, cs[0])
 			args = append(args, "--field-manager", o.FieldManager)
 		}
 	}
 	c := exec.Command("kubectl", args...)
-	//fmt.Printf("args %v\n", args)
+	// fmt.Printf("args %v\n", args)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
-	c.Run()
+	_ = c.Run()
 }
