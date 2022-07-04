@@ -4,18 +4,20 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/DaoCloud/ckube/utils/prommonitor"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/DaoCloud/ckube/utils/prommonitor"
+
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/jsonpath"
+
 	"github.com/DaoCloud/ckube/common/constants"
 	"github.com/DaoCloud/ckube/log"
 	"github.com/DaoCloud/ckube/store"
 	"github.com/DaoCloud/ckube/utils"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/jsonpath"
 )
 
 type resourceObj struct {
@@ -44,7 +46,7 @@ func NewMemoryStore(indexConf map[store.GroupVersionResource]map[string]string) 
 		indexConf: indexConf,
 	}
 	resourceMap := make(map[store.GroupVersionResource]clusterResource)
-	for k, _ := range indexConf {
+	for k := range indexConf {
 		resourceMap[k] = clusterResource{}
 	}
 	s.resourceMap = resourceMap
@@ -292,7 +294,7 @@ func (m *memoryStore) Query(gvr store.GroupVersionResource, query store.Query) s
 		return res
 	}
 	res.Total = l
-	var start, end int64 = 0, 0
+	var start, end int64
 	if query.PageSize == 0 {
 		// all resources
 		start = 0
@@ -323,7 +325,7 @@ func (m *memoryStore) buildResourceWithIndex(gvr store.GroupVersionResource, clu
 	mobj := utils.Obj2JSONMap(obj)
 	for k, v := range m.indexConf[gvr] {
 		w := bytes.NewBuffer([]byte{})
-		jp.Parse(v)
+		_ = jp.Parse(v)
 		err := jp.Execute(w, mobj)
 		if err != nil {
 			log.Warnf("exec jsonpath error: %v, %v", obj, err)

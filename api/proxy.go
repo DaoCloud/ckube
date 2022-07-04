@@ -101,7 +101,7 @@ func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelS
 	var paginate page.Paginate
 	var labelSelectorStr string
 	clusterPrefix := constants.ClusterPrefix
-	cluster := common.GetConfig().DefaultCluster
+	cluster := ""
 	query := r.URL.Query()
 	for k, v := range query {
 		switch k {
@@ -121,7 +121,7 @@ func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelS
 		opts, err := ioutil.ReadAll(body)
 		if err == nil {
 			options := v1.DeleteOptions{}
-			json.Unmarshal(opts, &options)
+			_ = json.Unmarshal(opts, &options)
 			if len(options.DryRun) > 0 && strings.HasPrefix(options.DryRun[0], clusterPrefix) {
 				cluster = options.DryRun[0][len(clusterPrefix):]
 				options.DryRun = options.DryRun[1:]
@@ -166,14 +166,20 @@ func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelS
 			if err != nil {
 				return nil, labels, cluster, err
 			}
-			json.Unmarshal(rr, &paginate)
+			_ = json.Unmarshal(rr, &paginate)
 			delete(labels.MatchLabels, constants.PaginateKey)
 		}
-		query.Set("labelSelector", v1.FormatLabelSelector(labels))
+		if len(labels.MatchLabels) != 0 || len(labels.MatchExpressions) != 0 {
+			// if labelSelectorStr is empty, v1.FormatLabelSelector will return "<none>", so we should not use it.
+			query.Set("labelSelector", v1.FormatLabelSelector(labels))
+		}
 	}
 	r.URL.RawQuery = query.Encode()
 	if cs := paginate.GetClusters(); len(cs) > 0 && cluster == "" {
 		cluster = cs[0]
+	}
+	if cluster == "" {
+		cluster = common.GetConfig().DefaultCluster
 	}
 	return &paginate, labels, cluster, nil
 }
@@ -182,6 +188,7 @@ func Proxy(r *ReqContext) interface{} {
 	// version := mux.Vars(r.Request)["version"]
 	namespace := mux.Vars(r.Request)["namespace"]
 	resourceName := mux.Vars(r.Request)["resource"]
+	gvr := getGVRFromReq(r.Request)
 	paginate, labels, cluster, err := parsePaginateAndLabelsAndClean(r.Request)
 	if err != nil {
 		return proxyPass(r, cluster)
@@ -189,7 +196,6 @@ func Proxy(r *ReqContext) interface{} {
 	if cluster == "" {
 		cluster = common.GetConfig().DefaultCluster
 	}
-	gvr := getGVRFromReq(r.Request)
 	for k, v := range r.Request.URL.Query() {
 		switch k {
 		case "labelSelector":
@@ -223,7 +229,7 @@ func Proxy(r *ReqContext) interface{} {
 	log.Debugf("got paginate %v", paginate)
 
 	items := make([]interface{}, 0)
-	var total int64 = 0
+	var total int64
 	if labels != nil && (len(labels.MatchLabels) != 0 || len(labels.MatchExpressions) != 0) {
 		// exists label selector
 		res := r.Store.Query(gvr, store.Query{
@@ -260,7 +266,7 @@ func Proxy(r *ReqContext) interface{} {
 
 		// manually slice items
 		var l = int64(len(items))
-		var start, end int64 = 0, 0
+		var start, end int64
 		if paginate.PageSize == 0 || paginate.Page == 0 {
 			// all resources
 			start = 0
@@ -346,7 +352,7 @@ func serverPrint(items []interface{}) interface{} {
 				continue
 			}
 			indexes := map[string]string{}
-			json.Unmarshal([]byte(indexesStr), &indexes)
+			_ = json.Unmarshal([]byte(indexesStr), &indexes)
 			if i == 0 {
 				commonCols := []string{"cluster", "namespace", "name"}
 				if _, ok := indexes["namespace"]; !ok {
@@ -440,12 +446,12 @@ func proxyPassWatch(r *ReqContext, cluster string) interface{} {
 		t := make([]byte, 1)
 		_, err := reader.Read(t)
 		if err != nil {
-			r.Writer.Write(buf.Bytes())
+			_, _ = r.Writer.Write(buf.Bytes())
 			return nil
 		}
 		buf.Write(t)
 		if t[0] == '\n' {
-			r.Writer.Write(buf.Bytes())
+			_, _ = r.Writer.Write(buf.Bytes())
 			buf.Reset()
 		}
 		select {

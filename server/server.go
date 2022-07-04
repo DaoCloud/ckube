@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/DaoCloud/ckube/api"
 	"github.com/DaoCloud/ckube/common"
 	"github.com/DaoCloud/ckube/log"
 	"github.com/DaoCloud/ckube/store"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -71,7 +72,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 			"method":         r.Method,
 			"type":           "access",
 			"path":           r.RequestURI,
-			"req_time":       time.Now().Sub(st),
+			"req_time":       time.Since(st),
 			"status":         sw.status,
 			"content_length": sw.length,
 		}).Print()
@@ -120,23 +121,11 @@ func (m *muxServer) ResetStore(s store.Store, clis map[string]kubernetes.Interfa
 	m.clusterClients = clis
 }
 
-func parseMethodPath(key string) (method, path string) {
-	keys := strings.Split(key, ":")
-	if len(keys) > 1 {
-		method = keys[0]
-		path = strings.Join(keys[1:], ":")
-	} else {
-		method = "*"
-		path = key
-	}
-	return
-}
-
 func jsonResp(writer http.ResponseWriter, status int, v interface{}) {
 	b, _ := json.Marshal(v)
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(status)
-	writer.Write(b)
+	_, _ = writer.Write(b)
 }
 
 func (m *muxServer) registerRoutes(router *mux.Router, handleRoutes []route) {
@@ -173,8 +162,7 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleRoutes []route) {
 						return
 					}
 				}
-				var res interface{}
-				res = route.handler(&api.ReqContext{
+				var res = route.handler(&api.ReqContext{
 					ClusterClients: m.clusterClients,
 					Store:          m.store,
 					Request:        r,
@@ -184,19 +172,19 @@ func (m *muxServer) registerRoutes(router *mux.Router, handleRoutes []route) {
 					return
 				}
 				var status int
-				switch res.(type) {
+				switch res := res.(type) {
 				case error:
 					log.Errorf("request return a unexpected error: %v", res)
 					panic(res)
 				case v1.Status:
-					status = int(res.(v1.Status).Code)
+					status = int(res.Code)
 				case *v1.Status:
-					status = int(res.(*v1.Status).Code)
+					status = int(res.Code)
 				case string:
-					writer.Write([]byte(res.(string)))
+					_, _ = writer.Write([]byte(res))
 					return
 				case []byte:
-					writer.Write(res.([]byte))
+					_, _ = writer.Write(res)
 					return
 				default:
 					status = route.successStatus

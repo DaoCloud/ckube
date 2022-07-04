@@ -8,15 +8,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DaoCloud/ckube/common"
-	"github.com/DaoCloud/ckube/log"
-	"github.com/DaoCloud/ckube/store"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+
+	"github.com/DaoCloud/ckube/common"
+	"github.com/DaoCloud/ckube/log"
+	"github.com/DaoCloud/ckube/store"
 )
 
 type watcher struct {
@@ -50,7 +51,7 @@ type ObjType struct {
 
 func (o *ObjType) UnmarshalJSON(bytes []byte) error {
 	m := map[string]interface{}{}
-	json.Unmarshal(bytes, &m)
+	_ = json.Unmarshal(bytes, &m)
 	if v, ok := m["apiVersion"]; ok {
 		o.APIVersion = v.(string)
 	}
@@ -59,7 +60,7 @@ func (o *ObjType) UnmarshalJSON(bytes []byte) error {
 	}
 	if meta, ok := m["metadata"]; ok {
 		bs, _ := json.Marshal(meta)
-		json.Unmarshal(bs, &o.ObjectMeta)
+		_ = json.Unmarshal(bs, &o.ObjectMeta)
 	}
 	delete(m, "apiVersion")
 	delete(m, "kind")
@@ -97,8 +98,8 @@ func (o ObjType) GetObjectKind() schema.ObjectKind {
 }
 
 func (o ObjType) DeepCopyObject() runtime.Object {
-	//o.lock.Lock()
-	//defer o.lock.Unlock()
+	// o.lock.Lock()
+	// defer o.lock.Unlock()
 	m := map[string]interface{}{}
 	for k, v := range o.Data {
 		m[k] = v
@@ -140,7 +141,7 @@ func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
 			return
 		default:
 		}
-		ctx, calcel := context.WithTimeout(context.Background(), time.Hour)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 		url := ""
 		if r.Group == "" {
 			url = fmt.Sprintf("/api/%s/%s?watch=true", r.Version, r.Resource)
@@ -160,17 +161,17 @@ func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
 					if first {
 						// only clean resource at the first time
 						// to avoid the resources gone after server break.
-						w.store.Clean(r, cluster)
+						_ = w.store.Clean(r, cluster)
 						first = false
 					}
 					if open {
 						switch rr.Type {
 						case watch.Added:
-							w.store.OnResourceAdded(r, cluster, rr.Object)
+							_ = w.store.OnResourceAdded(r, cluster, rr.Object)
 						case watch.Modified:
-							w.store.OnResourceModified(r, cluster, rr.Object)
+							_ = w.store.OnResourceModified(r, cluster, rr.Object)
 						case watch.Deleted:
-							w.store.OnResourceDeleted(r, cluster, rr.Object)
+							_ = w.store.OnResourceDeleted(r, cluster, rr.Object)
 						case watch.Error:
 							log.Warnf("cluster(%s): watch stream(%v) error: %v", cluster, r, rr.Object)
 						}
@@ -182,11 +183,12 @@ func (w *watcher) watchResources(r store.GroupVersionResource, cluster string) {
 					}
 				case <-w.stop:
 					ww.Stop()
+					cancel()
 					return
 				}
 			}
 		}
-		calcel()
+		cancel()
 	}
 }
 

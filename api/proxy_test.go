@@ -6,14 +6,15 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/DaoCloud/ckube/common"
-	"github.com/DaoCloud/ckube/store"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/DaoCloud/ckube/common"
+	"github.com/DaoCloud/ckube/store"
 )
 
 type fakeWriter struct {
@@ -57,13 +58,6 @@ func (c fakeValueContext) Value(key interface{}) interface{} {
 }
 
 var podsMap = map[string]string{
-	"namespace":    "default",
-	"group":        "",
-	"version":      "v1",
-	"resourceType": "pods",
-}
-
-var nsMap = map[string]string{
 	"namespace":    "default",
 	"group":        "",
 	"version":      "v1",

@@ -88,7 +88,7 @@ func TestNewFakeCKubeServer(t *testing.T) {
 	})
 	t.Run("list pods", func(t *testing.T) {
 		p := page.Paginate{}
-		p.Clusters([]string{"c1", "c2"})
+		_ = p.Clusters([]string{"c1", "c2"})
 		lopts, _ := page.QueryListOptions(metav1.ListOptions{}, p)
 		pods, err := cli.CoreV1().Pods("test").List(context.Background(), lopts)
 		assert.NoError(t, err)
@@ -109,6 +109,7 @@ func TestNewFakeCKubeServer(t *testing.T) {
 		assert.NoError(t, err)
 		goptc1, _ := page.QueryGetOptions(metav1.GetOptions{}, "c1")
 		p1, err := cli.CoreV1().Pods("test").Get(context.Background(), "pod1", goptc1)
+		assert.NoError(t, err)
 		assert.Equal(t, v1.DNSPolicy("Default"), p1.Spec.DNSPolicy)
 	})
 	t.Run("delete pods", func(t *testing.T) {
@@ -123,11 +124,8 @@ func TestNewFakeCKubeServer(t *testing.T) {
 	t.Run("events", func(t *testing.T) {
 		events := []Event{}
 		go func() {
-			for {
-				select {
-				case e := <-s.Events():
-					events = append(events, e)
-				}
+			for e := range s.Events() {
+				events = append(events, e)
 			}
 		}()
 		coptc1, _ := page.QueryCreateOptions(metav1.CreateOptions{}, "c1")
@@ -161,21 +159,18 @@ func TestNewFakeCKubeServer(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			p := page.Paginate{}
-			p.Clusters([]string{"c1"})
+			_ = p.Clusters([]string{"c1"})
 			lopts, _ := page.QueryListOptions(metav1.ListOptions{}, p)
 			w, err := cli.CoreV1().Pods("test").Watch(context.Background(), lopts)
 			assert.NoError(t, err)
 			wg.Done()
-			for {
-				select {
-				case e := <-w.ResultChan():
-					pod := e.Object.(*v1.Pod)
-					events = append(events, Event{
-						Cluster:   page.GetObjectCluster(pod),
-						Namespace: pod.Namespace,
-						Name:      pod.Name,
-					})
-				}
+			for e := range w.ResultChan() {
+				pod := e.Object.(*v1.Pod)
+				events = append(events, Event{
+					Cluster:   page.GetObjectCluster(pod),
+					Namespace: pod.Namespace,
+					Name:      pod.Name,
+				})
 			}
 		}()
 		wg.Wait()
@@ -210,7 +205,7 @@ func TestNewFakeCKubeServer(t *testing.T) {
 		}, events)
 	})
 	t.Run("custom api", func(t *testing.T) {
-		cli.CoreV1().Pods("test").Create(context.Background(), &v1.Pod{
+		_, _ = cli.CoreV1().Pods("test").Create(context.Background(), &v1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-xxxx-asd",
 				Namespace: "test",
@@ -225,7 +220,7 @@ func TestNewFakeCKubeServer(t *testing.T) {
 				},
 			},
 		}, metav1.CreateOptions{})
-		cli.CoreV1().Services("test").Create(context.Background(), &v1.Service{
+		_, _ = cli.CoreV1().Services("test").Create(context.Background(), &v1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-svc",
 				Namespace: "test",

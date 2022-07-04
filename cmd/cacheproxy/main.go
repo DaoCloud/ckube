@@ -4,6 +4,16 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
+
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	kubeapi "k8s.io/client-go/tools/clientcmd/api/v1"
+	"sigs.k8s.io/yaml"
+
 	"github.com/DaoCloud/ckube/common"
 	"github.com/DaoCloud/ckube/log"
 	"github.com/DaoCloud/ckube/server"
@@ -12,14 +22,6 @@ import (
 	"github.com/DaoCloud/ckube/utils"
 	"github.com/DaoCloud/ckube/utils/prommonitor"
 	"github.com/DaoCloud/ckube/watcher"
-	"io/ioutil"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	kubeapi "k8s.io/client-go/tools/clientcmd/api/v1"
-	"os"
-	"path"
-	"sigs.k8s.io/yaml"
 )
 
 func GetK8sConfigConfigWithFile(kubeconfig, context string) *rest.Config {
@@ -156,7 +158,7 @@ func loadFromConfig(kubeConfig, configFile string) (map[string]kubernetes.Interf
 	}
 	m := memory.NewMemoryStore(indexConf)
 	w := watcher.NewWatcher(clusterConfigs, storeGVRConfig, m)
-	w.Start()
+	_ = w.Start()
 	return clusterClients, w, m, nil
 }
 
@@ -195,33 +197,29 @@ func main() {
 		}
 		defer fixedWatcher.Close()
 		go func() {
-			for {
-				select {
-				case e := <-fixedWatcher.Events():
-					log.Infof("get file watcher event: %v", e)
-					switch e.Type {
-					case utils.EventTypeChanged:
-						// do reload
-					case utils.EventTypeError:
-						log.Errorf("got file watcher error type: file: %s", e.Name)
-						break
-						// do reload
-					}
-					clis, rw, rs, err := loadFromConfig(kubeConfig, configFile)
-					if err != nil {
-						prommonitor.ConfigReload.WithLabelValues("failed").Inc()
-						log.Errorf("watcher: reload config error: %v", err)
-						continue
-					}
-					prommonitor.Resources.Reset()
-					w.Stop()
-					w = rw
-					ser.ResetStore(rs, clis) // reset store
-					prommonitor.ConfigReload.WithLabelValues("success").Inc()
-					log.Infof("auto reloaded config successfully")
+			for e := range fixedWatcher.Events() {
+				log.Infof("get file watcher event: %v", e)
+				switch e.Type {
+				case utils.EventTypeChanged:
+					// do reload
+				case utils.EventTypeError:
+					log.Errorf("got file watcher error type: file: %s", e.Name)
+					// do reload
 				}
+				clis, rw, rs, err := loadFromConfig(kubeConfig, configFile)
+				if err != nil {
+					prommonitor.ConfigReload.WithLabelValues("failed").Inc()
+					log.Errorf("watcher: reload config error: %v", err)
+					continue
+				}
+				prommonitor.Resources.Reset()
+				_ = w.Stop()
+				w = rw
+				ser.ResetStore(rs, clis) // reset store
+				prommonitor.ConfigReload.WithLabelValues("success").Inc()
+				log.Infof("auto reloaded config successfully")
 			}
 		}()
 	}
-	ser.Run()
+	_ = ser.Run()
 }

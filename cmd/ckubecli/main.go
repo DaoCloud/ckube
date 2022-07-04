@@ -6,8 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/DaoCloud/ckube/page"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DaoCloud/ckube/page"
 )
 
 func main() {
@@ -30,7 +31,7 @@ func main() {
 	}
 	if clusters != "" {
 		ccs := strings.Split(clusters, ",")
-		p.Clusters(ccs)
+		_ = p.Clusters(ccs)
 	}
 	o, err := page.QueryListOptions(v1.ListOptions{}, p)
 	if err != nil {

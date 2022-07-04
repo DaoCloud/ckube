@@ -45,18 +45,12 @@ func NewFakeCKubeServer(listenAddr string, config string) (CkubeServer, error) {
 	cfg.Token = ""
 	common.InitConfig(&cfg)
 	indexConf := map[store.GroupVersionResource]map[string]string{}
-	storeGVRConfig := []store.GroupVersionResource{}
 	for _, proxy := range cfg.Proxies {
 		indexConf[store.GroupVersionResource{
 			Group:    proxy.Group,
 			Version:  proxy.Version,
 			Resource: proxy.Resource,
 		}] = proxy.Index
-		storeGVRConfig = append(storeGVRConfig, store.GroupVersionResource{
-			Group:    proxy.Group,
-			Version:  proxy.Version,
-			Resource: proxy.Resource,
-		})
 	}
 	m := memory.NewMemoryStore(indexConf)
 	addr := "http://" + func() string {
@@ -76,7 +70,7 @@ func NewFakeCKubeServer(listenAddr string, config string) (CkubeServer, error) {
 	}
 	ser := server.NewMuxServer(listenAddr, nil, m, s.registerFakeRoute)
 	s.ser = ser
-	go ser.Run()
+	go ser.Run() // nolint: errcheck
 	for i := 0; i < 5; i++ {
 		time.Sleep(time.Millisecond * 100 * time.Duration(1<<i))
 		_, err := http.Get(addr + "/metrics")
@@ -96,23 +90,17 @@ func NewFakeCKubeServerWithConfigPath(listenAddr string, cfgPath string) (CkubeS
 }
 
 func (s *fakeCkubeServer) Stop() {
-	s.ser.Stop()
+	_ = s.ser.Stop()
 }
 
 func (s *fakeCkubeServer) Clean() {
 	indexConf := map[store.GroupVersionResource]map[string]string{}
-	storeGVRConfig := []store.GroupVersionResource{}
 	for _, proxy := range common.GetConfig().Proxies {
 		indexConf[store.GroupVersionResource{
 			Group:    proxy.Group,
 			Version:  proxy.Version,
 			Resource: proxy.Resource,
 		}] = proxy.Index
-		storeGVRConfig = append(storeGVRConfig, store.GroupVersionResource{
-			Group:    proxy.Group,
-			Version:  proxy.Version,
-			Resource: proxy.Resource,
-		})
 	}
 	m := memory.NewMemoryStore(indexConf)
 	s.ser.ResetStore(m, nil)
@@ -171,7 +159,7 @@ func jsonResp(writer http.ResponseWriter, status int, v interface{}) {
 	b, _ := json.Marshal(v)
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(status)
-	writer.Write(b)
+	_, _ = writer.Write(b)
 }
 
 func errorProxy(w http.ResponseWriter, err metav1.Status) {
@@ -322,7 +310,7 @@ func (s *fakeCkubeServer) watch(writer http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
-			json.Unmarshal(rr, &paginate)
+			_ = json.Unmarshal(rr, &paginate)
 			delete(labels.MatchLabels, constants.PaginateKey)
 		}
 	}
@@ -370,7 +358,7 @@ func (s *fakeCkubeServer) watch(writer http.ResponseWriter, r *http.Request) {
 					typ = "MODIFIED"
 				}
 				res := fmt.Sprintf(`{"type": %q, "object": %s}`, typ, e.Raw)
-				writer.Write([]byte(res + "\n"))
+				_, _ = writer.Write([]byte(res + "\n"))
 				writer.(http.Flusher).Flush()
 			}
 		}
@@ -413,7 +401,7 @@ func (s *fakeCkubeServer) proxy(writer http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	json.Unmarshal(bs, &obj)
+	_ = json.Unmarshal(bs, &obj)
 	obj.Namespace = namespace
 	if resourceName == "" {
 		resourceName = obj.Name
@@ -429,7 +417,7 @@ func (s *fakeCkubeServer) proxy(writer http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-		s.store.OnResourceAdded(gvr, cluster, &obj)
+		_ = s.store.OnResourceAdded(gvr, cluster, &obj)
 	case "PUT":
 		action = EventActionUpdate
 		if o := s.store.Get(gvr, cluster, namespace, resourceName); o == nil {
@@ -439,11 +427,11 @@ func (s *fakeCkubeServer) proxy(writer http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-		s.store.OnResourceModified(gvr, cluster, &obj)
+		_ = s.store.OnResourceModified(gvr, cluster, &obj)
 	case "DELETE":
 		action = EventActionDelete
 		del := metav1.DeleteOptions{}
-		json.Unmarshal(bs, &del)
+		_ = json.Unmarshal(bs, &del)
 		if len(del.DryRun) == 1 && strings.HasPrefix(del.DryRun[0], constants.ClusterPrefix) {
 			cluster = del.DryRun[0][len(constants.ClusterPrefix):]
 		}
@@ -458,7 +446,7 @@ func (s *fakeCkubeServer) proxy(writer http.ResponseWriter, r *http.Request) {
 		}
 		obj.Name = resourceName
 		obj.Namespace = namespace
-		s.store.OnResourceDeleted(gvr, cluster, &obj)
+		_ = s.store.OnResourceDeleted(gvr, cluster, &obj)
 	}
 	e := Event{
 		EventAction: action,

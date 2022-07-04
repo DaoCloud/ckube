@@ -13,7 +13,6 @@ type route struct {
 	method        string
 	handler       HandleFunc
 	authRequired  bool
-	adminRequired bool
 	successStatus int
 	prefix        bool
 }
@@ -25,7 +24,7 @@ var (
 			path:   "/healthy",
 			method: "GET",
 			handler: func(r *api.ReqContext) interface{} {
-				r.Writer.Write([]byte("1"))
+				_, _ = r.Writer.Write([]byte("1"))
 				r.Writer.WriteHeader(200)
 				return nil
 			},
