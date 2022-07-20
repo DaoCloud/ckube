@@ -110,7 +110,7 @@ func (m *muxServer) Stop() error {
 	if m.server == nil {
 		return fmt.Errorf("server not start ever")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	log.Infof("shutting down the server...")
 	return m.server.Shutdown(ctx)

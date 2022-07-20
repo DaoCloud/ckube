@@ -90,7 +90,7 @@ func NewFakeCKubeServerWithConfigPath(listenAddr string, cfgPath string) (CkubeS
 }
 
 func (s *fakeCkubeServer) Stop() {
-	go s.ser.Stop()
+	_ = s.ser.Stop()
 }
 
 func (s *fakeCkubeServer) Clean() {
