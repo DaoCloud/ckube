@@ -72,6 +72,7 @@ func (m *memoryStore) initResourceNamespace(gvr store.GroupVersionResource, clus
 		}
 		return
 	}
+	m.lock.Lock()
 	// cluster not exists
 	m.resourceMap[gvr][cluster] = clusterObj{
 		lock: &sync.RWMutex{},
@@ -82,6 +83,7 @@ func (m *memoryStore) initResourceNamespace(gvr store.GroupVersionResource, clus
 			},
 		},
 	}
+	m.lock.Unlock()
 }
 
 func (m *memoryStore) IsStoreGVR(gvr store.GroupVersionResource) bool {
