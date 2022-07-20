@@ -90,7 +90,7 @@ func NewFakeCKubeServerWithConfigPath(listenAddr string, cfgPath string) (CkubeS
 }
 
 func (s *fakeCkubeServer) Stop() {
-	_ = s.ser.Stop()
+	go s.ser.Stop()
 }
 
 func (s *fakeCkubeServer) Clean() {
@@ -325,6 +325,9 @@ func (s *fakeCkubeServer) watch(writer http.ResponseWriter, r *http.Request) {
 	writer.Header().Set("Connection", "keep-alive")
 	writer.(http.Flusher).Flush()
 	for {
+		s.watchChanLock.RLock()
+		wc := s.watchChanMap[r.RemoteAddr]
+		s.watchChanLock.RUnlock()
 		select {
 		case <-ctx.Done():
 			s.watchChanLock.Lock()
@@ -332,7 +335,7 @@ func (s *fakeCkubeServer) watch(writer http.ResponseWriter, r *http.Request) {
 			delete(s.watchChanMap, r.RemoteAddr)
 			s.watchChanLock.Unlock()
 			return
-		case e := <-s.watchChanMap[r.RemoteAddr]:
+		case e := <-wc:
 			if e.Group == group &&
 				e.Version == version &&
 				e.Resource == resourceType &&
