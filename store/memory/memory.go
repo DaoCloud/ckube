@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 
 	"github.com/DaoCloud/ckube/utils/prommonitor"
 
@@ -317,18 +319,54 @@ func (m *memoryStore) Query(gvr store.GroupVersionResource, query store.Query) s
 	return res
 }
 
+var funMap = map[string]interface{}{
+	"default": func(def string, pre interface{}) string {
+		if pre == nil {
+			return def
+		}
+		return fmt.Sprintf("%s", pre)
+	},
+	"quote": func(pre interface{}) string {
+		return fmt.Sprintf("%q", pre)
+	},
+	"join": func(sep string, ins ...string) string {
+		return strings.Join(ins, sep)
+	},
+}
+
 func (m *memoryStore) buildResourceWithIndex(gvr store.GroupVersionResource, cluster string, obj interface{}) (string, string, store.Object) {
 	s := store.Object{
 		Index: map[string]string{},
 		Obj:   obj,
 	}
+	mobj := utils.Obj2JSONMap(obj)
 	jp := jsonpath.New("parser")
 	jp.AllowMissingKeys(true)
-	mobj := utils.Obj2JSONMap(obj)
+	gotmpl := template.New("parser").Funcs(funMap)
 	for k, v := range m.indexConf[gvr] {
 		w := bytes.NewBuffer([]byte{})
-		_ = jp.Parse(v)
-		err := jp.Execute(w, mobj)
+		var exec interface {
+			Execute(wr io.Writer, data interface{}) error
+		}
+		var err error
+		if strings.Contains(v, "{{") {
+			// go template
+			exec, err = gotmpl.Parse(v)
+		} else if !strings.Contains(v, "{") {
+			// raw string
+			s.Index[k] = v
+			continue
+		} else {
+			// json path
+			_ = jp.Parse(v)
+			exec = jp
+		}
+		if err != nil {
+			log.Errorf("parse temp error: %v", err)
+			s.Index[k] = w.String()
+			continue
+		}
+		err = exec.Execute(w, mobj)
 		if err != nil {
 			log.Warnf("exec jsonpath error: %v, %v", obj, err)
 		}
