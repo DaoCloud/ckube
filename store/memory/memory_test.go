@@ -2,6 +2,7 @@ package memory
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,6 +26,85 @@ var depsGVR = store.GroupVersionResource{
 	Group:    "apps",
 	Version:  "corev1",
 	Resource: "deployments",
+}
+
+func TestConcurrentReadWrite(t *testing.T) {
+	m := NewMemoryStore(map[store.GroupVersionResource]map[string]string{
+		podsGVR: {
+			"name": "{.metadata.name}",
+		},
+	})
+	wg := sync.WaitGroup{}
+	round := 1000
+	wg.Add(round)
+	go func() {
+		for i := 0; i < round; i++ {
+			_ = m.OnResourceAdded(podsGVR, "test", &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("test-%d", i),
+					Namespace: "test",
+				},
+			})
+			wg.Done()
+		}
+	}()
+	wg.Add(round)
+	go func() {
+		for i := 0; i < round; i++ {
+			_ = m.OnResourceDeleted(podsGVR, "test", &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("test-%d", i),
+					Namespace: "test",
+				},
+			})
+			wg.Done()
+		}
+	}()
+	wg.Add(round)
+	go func() {
+		for i := 0; i < round; i++ {
+			m.Get(podsGVR, "test", "test", fmt.Sprintf("test-%d", i))
+			wg.Done()
+		}
+	}()
+	wg.Wait()
+}
+
+func BenchmarkWrite(b *testing.B) {
+	m := NewMemoryStore(map[store.GroupVersionResource]map[string]string{
+		podsGVR: {
+			"name": "{.metadata.name}",
+		},
+	})
+	for i := 0; i < b.N; i++ {
+		_ = m.OnResourceAdded(podsGVR, "test", &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("test-%d", i),
+				Namespace: "test",
+			},
+		})
+	}
+}
+
+func BenchmarkRead(b *testing.B) {
+	m := NewMemoryStore(map[store.GroupVersionResource]map[string]string{
+		podsGVR: {
+			"name": "{.metadata.name}",
+		},
+	})
+	go func() {
+		for i := 0; i < b.N; i++ {
+			_ = m.OnResourceAdded(podsGVR, "test", &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("test-%d", i),
+					Namespace: "test",
+				},
+			})
+		}
+	}()
+	for i := 0; i < b.N; i++ {
+		m.Get(podsGVR, "test", "test", fmt.Sprintf("test-%d", i))
+	}
 }
 
 var testIndexConf = map[store.GroupVersionResource]map[string]string{
@@ -817,6 +897,8 @@ func TestMemoryStore_buildResourceWithIndex(t *testing.T) {
 				"default status": "no spec",
 				"quote":          "\"Running\"",
 				"raw":            "test raw",
+				"name":           "test-1",
+				"namespace":      "default",
 			},
 		},
 	}

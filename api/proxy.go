@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"reflect"
 	"sort"
@@ -118,7 +117,7 @@ func parsePaginateAndLabelsAndClean(r *http.Request) (*page.Paginate, *v1.LabelS
 	}
 	if r.Method == http.MethodDelete {
 		body := r.Body
-		opts, err := ioutil.ReadAll(body)
+		opts, err := io.ReadAll(body)
 		if err == nil {
 			options := v1.DeleteOptions{}
 			_ = json.Unmarshal(opts, &options)

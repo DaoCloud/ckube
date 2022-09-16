@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -69,7 +68,7 @@ func GetKubernetesClientWithFile(kubeconfig, context string) (kubernetes.Interfa
 func loadFromConfig(kubeConfig, configFile string) (map[string]kubernetes.Interface, watcher.Watcher, store.Store, error) {
 
 	cfg := common.Config{}
-	if bs, err := ioutil.ReadFile(configFile); err != nil {
+	if bs, err := os.ReadFile(configFile); err != nil {
 		log.Errorf("config file load error: %v", err)
 		return nil, nil, nil, err
 	} else {
@@ -106,7 +105,7 @@ func loadFromConfig(kubeConfig, configFile string) (map[string]kubernetes.Interf
 		}
 	}
 	if kubeConfig != "" {
-		bs, err := ioutil.ReadFile(kubeConfig)
+		bs, err := os.ReadFile(kubeConfig)
 		if err != nil {
 			log.Errorf("read kube config error: %v", err)
 			return nil, nil, nil, err
