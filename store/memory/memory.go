@@ -11,8 +11,7 @@ import (
 	"sync"
 	"text/template"
 
-	"github.com/DaoCloud/ckube/utils/prommonitor"
-
+	"github.com/samber/lo"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/jsonpath"
 
@@ -20,26 +19,97 @@ import (
 	"github.com/DaoCloud/ckube/log"
 	"github.com/DaoCloud/ckube/store"
 	"github.com/DaoCloud/ckube/utils"
+	"github.com/DaoCloud/ckube/utils/prommonitor"
 )
 
-type resourceObj struct {
-	lock   *sync.RWMutex
-	objMap map[string]store.Object
+type syncResourceStore[K comparable, V any] struct {
+	lock      sync.RWMutex
+	resources map[K]*V
 }
 
-type namespaceResource map[string]resourceObj
-
-type clusterObj struct {
-	lock       *sync.RWMutex
-	namespaces namespaceResource
+func (s *syncResourceStore[K, V]) Set(key K, value V) {
+	s.lock.Lock()
+	if s.resources == nil {
+		s.resources = make(map[K]*V)
+	}
+	s.resources[key] = &value
+	s.lock.Unlock()
 }
 
-type clusterResource map[string]clusterObj
+func (s *syncResourceStore[K, V]) Init(key K) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	if s.resources == nil {
+		s.resources = make(map[K]*V)
+	}
+	if _, ok := s.resources[key]; ok {
+		return
+	}
+	s.resources[key] = new(V)
+}
+
+func (s *syncResourceStore[K, V]) Clean() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.resources = make(map[K]*V)
+}
+
+func (s *syncResourceStore[K, V]) Get(key K) *V {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return s.resources[key]
+}
+
+func (s *syncResourceStore[K, V]) Exists(key K) bool {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	_, ok := s.resources[key]
+	return ok
+}
+
+func (s *syncResourceStore[K, V]) Delete(key K) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	delete(s.resources, key)
+}
+
+func (s *syncResourceStore[K, V]) Values() []*V {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return lo.Values(s.resources)
+}
+
+func (s *syncResourceStore[K, V]) ForEach(iter func(k K, v *V)) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	for k, v := range s.resources {
+		iter(k, v)
+	}
+}
+
+func (s *syncResourceStore[K, V]) Len() int {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return len(s.resources)
+}
+
+type clusterName string
+
+type namespaceName string
 
 type memoryStore struct {
-	lock        sync.RWMutex
-	resourceMap map[store.GroupVersionResource]clusterResource
-	indexConf   map[store.GroupVersionResource]map[string]string
+	indexConf map[store.GroupVersionResource]map[string]string
+	// resourceMap gvr - clusterName - namespaceName - name
+	resourceMap syncResourceStore[
+		store.GroupVersionResource,
+		syncResourceStore[
+			clusterName,
+			syncResourceStore[
+				namespaceName,
+				syncResourceStore[string, store.Object],
+			],
+		],
+	]
 	store.Store
 }
 
@@ -47,103 +117,55 @@ func NewMemoryStore(indexConf map[store.GroupVersionResource]map[string]string) 
 	s := memoryStore{
 		indexConf: indexConf,
 	}
-	resourceMap := make(map[store.GroupVersionResource]clusterResource)
 	for k := range indexConf {
-		resourceMap[k] = clusterResource{}
+		s.resourceMap.Init(k)
 	}
-	s.resourceMap = resourceMap
 	return &s
 }
 
 func (m *memoryStore) initResourceNamespace(gvr store.GroupVersionResource, cluster, namespace string) {
-	if c, ok := m.resourceMap[gvr][cluster]; ok {
-		c.lock.RLock()
-		if _, ok := c.namespaces[namespace]; ok {
-			// all exists
-			c.lock.RUnlock()
-			return
-		} else {
-			// cluster exists, but namespace not exists
-			c.lock.RUnlock()
-			c.lock.Lock()
-			m.resourceMap[gvr][cluster].namespaces[namespace] = resourceObj{
-				lock:   &sync.RWMutex{},
-				objMap: map[string]store.Object{},
-			}
-			c.lock.Unlock()
-		}
-		return
-	}
-	m.lock.Lock()
-	// cluster not exists
-	m.resourceMap[gvr][cluster] = clusterObj{
-		lock: &sync.RWMutex{},
-		namespaces: namespaceResource{
-			namespace: resourceObj{
-				lock:   &sync.RWMutex{},
-				objMap: map[string]store.Object{},
-			},
-		},
-	}
-	m.lock.Unlock()
+	m.resourceMap.Get(gvr).Init(clusterName(cluster))
+	m.resourceMap.Get(gvr).Get(clusterName(cluster)).Init(namespaceName(namespace))
 }
 
 func (m *memoryStore) IsStoreGVR(gvr store.GroupVersionResource) bool {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	_, ok := m.indexConf[gvr]
-	return ok
+	return m.resourceMap.Exists(gvr)
 }
 
 func (m *memoryStore) Clean(gvr store.GroupVersionResource, cluster string) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	if _, ok := m.resourceMap[gvr]; ok {
-		m.resourceMap[gvr][cluster] = clusterObj{
-			lock:       &sync.RWMutex{},
-			namespaces: namespaceResource{},
-		}
-		return nil
+	if !m.resourceMap.Get(gvr).Exists(clusterName(cluster)) {
+		return fmt.Errorf("cluster %s not exists", cluster)
 	}
-	return fmt.Errorf("resource %s not found", gvr)
+	for _, c := range m.resourceMap.Get(gvr).Get(clusterName(cluster)).Values() {
+		c.Clean()
+	}
+	return nil
 }
 
 func (m *memoryStore) OnResourceAdded(gvr store.GroupVersionResource, cluster string, obj interface{}) error {
 	ns, name, o := m.buildResourceWithIndex(gvr, cluster, obj)
 	m.initResourceNamespace(gvr, cluster, ns)
-	m.resourceMap[gvr][cluster].lock.Lock()
-	defer m.resourceMap[gvr][cluster].lock.Unlock()
-	m.resourceMap[gvr][cluster].namespaces[ns].lock.Lock()
-	defer m.resourceMap[gvr][cluster].namespaces[ns].lock.Unlock()
-	m.resourceMap[gvr][cluster].namespaces[ns].objMap[name] = o
+	m.resourceMap.Get(gvr).Get(clusterName(cluster)).Get(namespaceName(ns)).Set(name, o)
 	prommonitor.Resources.WithLabelValues(cluster, gvr.Group, gvr.Version, gvr.Resource, ns).
-		Set(float64(len(m.resourceMap[gvr][cluster].namespaces[ns].objMap)))
+		Set(float64(m.resourceMap.Get(gvr).Get(clusterName(cluster)).Get(namespaceName(ns)).Len()))
 	return nil
 }
 
 func (m *memoryStore) OnResourceModified(gvr store.GroupVersionResource, cluster string, obj interface{}) error {
 	ns, name, o := m.buildResourceWithIndex(gvr, cluster, obj)
 	m.initResourceNamespace(gvr, cluster, ns)
-	m.resourceMap[gvr][cluster].lock.Lock()
-	defer m.resourceMap[gvr][cluster].lock.Unlock()
-	m.resourceMap[gvr][cluster].namespaces[ns].lock.Lock()
-	defer m.resourceMap[gvr][cluster].namespaces[ns].lock.Unlock()
-	m.resourceMap[gvr][cluster].namespaces[ns].objMap[name] = o
+	m.resourceMap.Get(gvr).Get(clusterName(cluster)).Get(namespaceName(ns)).Set(name, o)
 	prommonitor.Resources.WithLabelValues(cluster, gvr.Group, gvr.Version, gvr.Resource, ns).
-		Set(float64(len(m.resourceMap[gvr][cluster].namespaces[ns].objMap)))
+		Set(float64(m.resourceMap.Get(gvr).Get(clusterName(cluster)).Get(namespaceName(ns)).Len()))
 	return nil
 }
 
 func (m *memoryStore) OnResourceDeleted(gvr store.GroupVersionResource, cluster string, obj interface{}) error {
 	ns, name, _ := m.buildResourceWithIndex(gvr, cluster, obj)
 	m.initResourceNamespace(gvr, cluster, ns)
-	m.resourceMap[gvr][cluster].lock.Lock()
-	defer m.resourceMap[gvr][cluster].lock.Unlock()
-	m.resourceMap[gvr][cluster].namespaces[ns].lock.Lock()
-	defer m.resourceMap[gvr][cluster].namespaces[ns].lock.Unlock()
-	delete(m.resourceMap[gvr][cluster].namespaces[ns].objMap, name)
+	m.resourceMap.Get(gvr).Get(clusterName(cluster)).Get(namespaceName(ns)).Delete(name)
 	prommonitor.Resources.WithLabelValues(cluster, gvr.Group, gvr.Version, gvr.Resource, ns).
-		Set(float64(len(m.resourceMap[gvr][cluster].namespaces[ns].objMap)))
+		Set(float64(m.resourceMap.Get(gvr).Get(clusterName(cluster)).Get(namespaceName(ns)).Len()))
 	return nil
 }
 
@@ -250,19 +272,15 @@ func sortObjs(objs []store.Object, s string) ([]store.Object, error) {
 }
 
 func (m *memoryStore) Get(gvr store.GroupVersionResource, cluster string, namespace, name string) interface{} {
-	if m.resourceMap[gvr] != nil {
-		if c, ok := m.resourceMap[gvr][cluster]; ok {
-			c.lock.RLock()
-			defer c.lock.RUnlock()
-		} else {
+	if m.resourceMap.Exists(gvr) {
+		if !m.resourceMap.Get(gvr).Exists(clusterName(cluster)) {
 			return nil
 		}
-		if nsObjs, ok := m.resourceMap[gvr][cluster].namespaces[namespace]; ok {
-			nsObjs.lock.RLock()
-			defer nsObjs.lock.RUnlock()
-			if sobj, ok := nsObjs.objMap[name]; ok {
-				return sobj.Obj
-			}
+		if !m.resourceMap.Get(gvr).Get(clusterName(cluster)).Exists(namespaceName(namespace)) {
+			return nil
+		}
+		if o := m.resourceMap.Get(gvr).Get(clusterName(cluster)).Get(namespaceName(namespace)).Get(name); o != nil {
+			return o.Obj
 		}
 	}
 	return nil
@@ -271,23 +289,22 @@ func (m *memoryStore) Get(gvr store.GroupVersionResource, cluster string, namesp
 func (m *memoryStore) Query(gvr store.GroupVersionResource, query store.Query) store.QueryResult {
 	res := store.QueryResult{}
 	resources := make([]store.Object, 0)
-	for _, nss := range m.resourceMap[gvr] {
-		nss.lock.RLock()
-		for ns, robj := range nss.namespaces {
-			if query.Namespace == "" || query.Namespace == ns {
-				robj.lock.RLock()
-				for _, obj := range robj.objMap {
+	m.resourceMap.Get(gvr).ForEach(func(cname clusterName, c *syncResourceStore[
+		namespaceName,
+		syncResourceStore[string, store.Object],
+	]) {
+		c.ForEach(func(ns namespaceName, nssObj *syncResourceStore[string, store.Object]) {
+			if query.Namespace == "" || query.Namespace == string(ns) {
+				nssObj.ForEach(func(name string, obj *store.Object) {
 					if ok, err := query.Match(obj.Index); ok {
-						resources = append(resources, obj)
+						resources = append(resources, *obj)
 					} else if err != nil {
 						res.Error = err
 					}
-				}
-				robj.lock.RUnlock()
+				})
 			}
-		}
-		nss.lock.RUnlock()
-	}
+		})
+	})
 	l := int64(len(resources))
 	if l == 0 {
 		return res
@@ -402,6 +419,10 @@ func (m *memoryStore) buildResourceWithIndex(gvr store.GroupVersionResource, clu
 		anno[constants.IndexAnno] = string(index) // todo constants
 		oo.SetAnnotations(anno)
 		s.Obj = oo
+		namespace = oo.GetNamespace()
+		name = oo.GetName()
+		s.Index["namespace"] = namespace
+		s.Index["name"] = name
 	}
 	log.Debugf("memory store: gvr: %v, resources %s/%s, index: %v", gvr, namespace, name, s.Index)
 	return namespace, name, s

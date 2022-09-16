@@ -123,9 +123,12 @@ func TestNewFakeCKubeServer(t *testing.T) {
 
 	t.Run("events", func(t *testing.T) {
 		events := []Event{}
+		lock := sync.Mutex{}
 		go func() {
 			for e := range s.Events() {
+				lock.Lock()
 				events = append(events, e)
+				lock.Unlock()
 			}
 		}()
 		coptc1, _ := page.QueryCreateOptions(metav1.CreateOptions{}, "c1")
@@ -140,6 +143,8 @@ func TestNewFakeCKubeServer(t *testing.T) {
 			},
 		}, coptc1)
 		assert.NoError(t, err)
+		lock.Lock()
+		defer lock.Unlock()
 		assert.Equal(t, []Event{
 			{
 				EventAction: EventActionAdd,
@@ -155,6 +160,7 @@ func TestNewFakeCKubeServer(t *testing.T) {
 	})
 	t.Run("watch", func(t *testing.T) {
 		events := []Event{}
+		lock := sync.Mutex{}
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
@@ -166,11 +172,13 @@ func TestNewFakeCKubeServer(t *testing.T) {
 			wg.Done()
 			for e := range w.ResultChan() {
 				pod := e.Object.(*v1.Pod)
+				lock.Lock()
 				events = append(events, Event{
 					Cluster:   page.GetObjectCluster(pod),
 					Namespace: pod.Namespace,
 					Name:      pod.Name,
 				})
+				lock.Unlock()
 			}
 		}()
 		wg.Wait()
@@ -197,6 +205,8 @@ func TestNewFakeCKubeServer(t *testing.T) {
 			},
 		}, coptc2)
 		assert.NoError(t, err)
+		lock.Lock()
+		defer lock.Unlock()
 		assert.Equal(t, []Event{
 			{
 				Namespace: "test",
